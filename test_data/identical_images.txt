@@ -1,0 +1,7 @@
+calibration 320 240 262.5 262.5 159.5 119.5 0.001
+a_image images/a_image.png
+a_depth images/a_depth.png
+b_image images/a_image.png
+b_depth images/a_depth.png
+a_t_b 1 0 0 0 0 1 0 0 0 0 1 0
+average_scene_depth 2.23062
