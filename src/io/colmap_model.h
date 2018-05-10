@@ -35,7 +35,7 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include<Eigen/StdVector>
+#include <Eigen/StdVector>
 #include <sophus/se3.hpp>
 
 namespace opt {
