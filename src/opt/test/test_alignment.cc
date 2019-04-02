@@ -170,7 +170,7 @@ void Test4FrameAlignment(
   camera::PinholeCamera camera(kCameraWidth, kCameraHeight, kCameraFX,
                                kCameraFY, kCameraCX, kCameraCY);
   
-  // Create RGB & depth renderer->
+  // Create RGB & depth renderer
   opengl::RendererProgramStoragePtr renderer_program_storage(
       new opengl::RendererProgramStorage());
   std::shared_ptr<opengl::Renderer> renderer(
@@ -223,9 +223,9 @@ void Test4FrameAlignment(
     for (int camera_index = 0; camera_index < 2; ++ camera_index) {
       // Render images.
       renderer->BeginRendering(image_T_global[rig_image_set][camera_index],
-                              camera, kMinRenderDepth, kMaxRenderDepth);
+                               camera, kMinRenderDepth, kMaxRenderDepth);
       renderer->RenderTriangleList(mesh.vertex_buffer(), mesh.color_buffer(),
-                                  mesh.index_buffer(), mesh.index_count());
+                                   mesh.index_buffer(), mesh.index_count());
       renderer->EndRendering();
       
       // Download rendered images.
