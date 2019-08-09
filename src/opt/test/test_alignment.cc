@@ -485,7 +485,7 @@ void Test4FrameAlignment(
           cv::resize(scale_depth_maps[i - 1], scale_depth_maps[i],
                       cv::Size(kDownscaleFactor * scale_depth_maps[i - 1].cols,
                               kDownscaleFactor * scale_depth_maps[i - 1].rows),
-                      kDownscaleFactor, kDownscaleFactor, CV_INTER_AREA);
+                      kDownscaleFactor, kDownscaleFactor, cv::INTER_AREA);
           if (scale_depth_maps[i].empty()) {
             LOG(FATAL) << "Resizing failed";
           }

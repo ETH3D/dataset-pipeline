@@ -135,7 +135,7 @@ bool ProcessOnePair(const ImagePairInfo& info,
   std::string model_depth_absolute_path =
       (boost::filesystem::path(files_directory_path) / info.model_depth_path).string();
   cv::Mat_<uint16_t> model_depth_image =
-      cv::imread(model_depth_absolute_path, CV_LOAD_IMAGE_UNCHANGED);
+      cv::imread(model_depth_absolute_path, cv::IMREAD_UNCHANGED);
   if (model_depth_image.empty()) {
     std::cout << "  SKIP: Cannot read depth image at path "
               << model_depth_absolute_path << std::endl;
