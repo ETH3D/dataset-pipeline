@@ -45,7 +45,7 @@ void Image::LoadImageData(int image_scale_count, opt::Intrinsics* intrinsics, co
       file_path :
       (boost::filesystem::path(base_path) / file_path).string();
   image_.resize(image_scale_count);
-  image_[0] = cv::imread(image_file_path, CV_LOAD_IMAGE_GRAYSCALE);
+  image_[0] = cv::imread(image_file_path, cv::IMREAD_GRAYSCALE);
   if (image_[0].empty()) {
     LOG(FATAL) << "Cannot read image: " << file_path;
   }
@@ -115,7 +115,7 @@ void Image::BuildImagePyramid() {
     cv::resize(image_.at(i - 1), image_.at(i),
                 cv::Size(scale_factor * image_.at(i - 1).cols,
                          scale_factor * image_.at(i - 1).rows),
-                scale_factor, scale_factor, CV_INTER_AREA);
+                scale_factor, scale_factor, cv::INTER_AREA);
     if (image_.at(i).empty()) {
       LOG(FATAL) << "Resizing failed";
     }

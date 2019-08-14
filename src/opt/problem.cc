@@ -650,7 +650,7 @@ void Problem::DebugWriteColoredPointCloud(const pcl::PointCloud<pcl::PointXYZ>::
     visibility_estimator.AppendObservationsForImageNoScale(
         occlusion_geometry(), *point_cloud, image, intrinsics, 0, &observations);
     
-    cv::Mat_<cv::Vec3b> color_image = cv::imread(image.file_path, CV_LOAD_IMAGE_COLOR);
+    cv::Mat_<cv::Vec3b> color_image = cv::imread(image.file_path, cv::IMREAD_COLOR);
     if (color_image.empty()) {
       LOG(FATAL) << "Cannot read image: " << image.file_path;
     }
