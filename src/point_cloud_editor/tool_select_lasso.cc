@@ -44,7 +44,7 @@ LassoSelectionTool::LassoSelectionTool(RenderWidget* render_widget)
 
 bool LassoSelectionTool::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::RightButton) {
-    points_.push_back(event->posF());
+    points_.push_back(event->localPos());
     return true;
   }
   return false;
@@ -181,8 +181,8 @@ bool LassoSelectionTool::applySelection(Qt::KeyboardModifiers modifiers) {
             int int_pixel_y = std::max<int>(0, std::min<int>(render_camera.height() - 1, pixel_y));
             const float rendered_depth = depth_image(int_pixel_y, int_pixel_x);
             constexpr float kDepthToleranceFactor = 0.99f;
-            if (!isinf(rendered_depth) &&
-                !isnan(rendered_depth) &&
+            if (!std::isinf(rendered_depth) &&
+                !std::isnan(rendered_depth) &&
                 rendered_depth < kDepthToleranceFactor * camera_point.z()) {
               // The rendered depth is significantly before the point depth,
               // so do not select the point.

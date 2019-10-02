@@ -469,7 +469,7 @@ int main(int argc, char** argv) {
         continue;
       }
       float measured_depth = depth_image(iy, ix);
-      if (isinf(measured_depth) || isnan(measured_depth) || measured_depth <= 0.f) {
+      if (std::isinf(measured_depth) || std::isnan(measured_depth) || measured_depth <= 0.f) {
         continue;
       }
       

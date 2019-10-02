@@ -630,7 +630,7 @@ void ImageWidget::UpdateDepthMap(
     uint8_t* out_ptr = result.scanLine(y);
     for (int x = 0; x < image_scale_camera.width(); ++ x) {
       float depth = temp_depth_map(y, x);
-      if (isinf(depth)) {
+      if (std::isinf(depth)) {
         // Pixel was not observed.
         *out_ptr = 0;
         ++ out_ptr;
