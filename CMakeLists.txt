@@ -32,6 +32,7 @@ find_package(Glog 0.3.4 REQUIRED)
 
 # OpenCV
 find_package(OpenCV REQUIRED)
+include_directories(${OPENCV_INCLUDE_DIRS})
 
 # PCL
 find_package(PCL 1.7 REQUIRED)
@@ -115,6 +116,8 @@ add_library(BaseLib
   src/opt/util.cc
   src/opt/visibility_estimator.cc
 )
+target_link_libraries(BaseLib
+  ${OpenCV_LIBS})
 set(BASE_LIB_LIBRARIES
   BaseLib
   ${OpenCV_LIBS}

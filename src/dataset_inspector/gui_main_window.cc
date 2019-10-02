@@ -944,11 +944,11 @@ void MainWindow::TransferLabels(
   const int fill_in_threshold_int =
       static_cast<int>((kFillInThreshold * window_pixel_count) + 0.5f);
   
-  cv::Mat_<std::size_t> eval_obs_integral_image(target_mask.rows, target_mask.cols);
-  cv::Mat_<std::size_t> obs_integral_image(target_mask.rows, target_mask.cols);
+  cv::Mat_<int> eval_obs_integral_image(target_mask.rows, target_mask.cols);
+  cv::Mat_<int> obs_integral_image(target_mask.rows, target_mask.cols);
   // Set first row.
-  std::size_t eval_obs_row_sum = 0;
-  std::size_t obs_row_sum = 0;
+  int eval_obs_row_sum = 0;
+  int obs_row_sum = 0;
   for (int x = 0; x < target_mask.cols; ++ x) {
     if (transfer_eval_obs) {
       eval_obs_row_sum += ((target_mask(0, x) == opt::MaskType::kEvalObs) ? 1 : 0);
