@@ -35,7 +35,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${OPENCV_INCLUDE_DIRS})
 
 # PCL
-find_package(PCL 1.7 REQUIRED)
+find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -43,7 +43,9 @@ add_definitions(${PCL_DEFINITIONS})
 # Qt4 (Qt5 was incompatible with the build of pcl which was used)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-find_package(Qt4 REQUIRED QtGui)
+find_package(Qt5 COMPONENTS Widgets OpenGL REQUIRED)
+# get_target_property(QtCore_location Qt5::Widgets LOCATION)
+
 
 
 # Shipped dependencies.
@@ -118,6 +120,7 @@ add_library(BaseLib
 )
 target_link_libraries(BaseLib
   ${OpenCV_LIBS})
+target_compile_options(BaseLib PRIVATE -Wno-sign-compare)
 set(BASE_LIB_LIBRARIES
   BaseLib
   ${OpenCV_LIBS}
@@ -146,9 +149,10 @@ target_link_libraries(PointCloudEditorLib
   cork
   ${GMP_LIBRARIES}
   ${BASE_LIB_LIBRARIES}
-  Qt4::QtGui
-  Qt4::QtOpenGL
+  Qt5::Widgets
+  Qt5::OpenGL
 )
+target_compile_options(PointCloudEditorLib PRIVATE -Wno-sign-compare)
 
 
 # PointCloudCleaner executable.
@@ -218,8 +222,8 @@ add_executable(DatasetInspector
 target_link_libraries(DatasetInspector
   ${BASE_LIB_LIBRARIES}
   PointCloudEditorLib
-  Qt4::QtGui
-  Qt4::QtOpenGL
+  Qt5::Widgets
+  Qt5::OpenGL
   opengv
 )
 
@@ -302,6 +306,7 @@ target_link_libraries(Test_MultiScalePointCloud
   gtest
   gtest_main
 )
+target_compile_options(Test_MultiScalePointCloud PRIVATE -Wno-sign-compare)
 add_test(Test_MultiScalePointCloud
   Test_MultiScalePointCloud
 )
@@ -315,6 +320,7 @@ target_link_libraries(Test_ICP
   gtest
   gtest_main
 )
+target_compile_options(Test_ICP PRIVATE -g)
 add_test(Test_ICP
   Test_ICP
 )
@@ -342,6 +348,7 @@ target_link_libraries(Test_IntrinsicsAndPoseOptimizer
   gtest
   gtest_main
 )
+target_compile_options(Test_IntrinsicsAndPoseOptimizer PRIVATE -Wno-sign-compare)
 add_test(Test_IntrinsicsAndPoseOptimizer
   Test_IntrinsicsAndPoseOptimizer
 )
