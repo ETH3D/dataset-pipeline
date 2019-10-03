@@ -35,6 +35,7 @@
 #include <pcl/point_types.h>
 #include <pcl/PolygonMesh.h>
 #include <pcl/io/ply_io.h>
+#include <random>
 
 #include "camera/camera_pinhole.h"
 #include "opengl/mesh.h"
