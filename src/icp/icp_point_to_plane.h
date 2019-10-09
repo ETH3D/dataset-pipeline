@@ -30,6 +30,7 @@
 #pragma once
 
 #include <Eigen/Geometry>
+#include <Eigen/StdVector>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
@@ -57,6 +58,8 @@ class PointToPlaneICP {
   
  private:
   struct PointCloud {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     pcl::PointCloud<pcl::PointNormal>::Ptr point_cloud;
     pcl::PointCloud<pcl::PointNormal>::Ptr global_frame_point_cloud;
     Eigen::Affine3f global_T_cloud;
@@ -70,7 +73,7 @@ class PointToPlaneICP {
                    bool print_progress);
   
   // Point clouds to optimize the pose of.
-  std::vector<PointCloud> clouds_;
+  std::vector<PointCloud, Eigen::aligned_allocator<PointCloud>> clouds_;
   
   // Fixed cloud which keeps its pose but provides correspondences.
   pcl::PointCloud<pcl::PointNormal>::Ptr fixed_cloud_;

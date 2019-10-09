@@ -34,6 +34,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPointF>
+#include <Eigen/StdVector>
 
 #include "point_cloud_editor/csg_operation.h"
 
