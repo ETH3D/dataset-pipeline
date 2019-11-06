@@ -34,16 +34,20 @@ find_package(Glog 0.3.4 REQUIRED)
 find_package(OpenCV REQUIRED)
 include_directories(${OPENCV_INCLUDE_DIRS})
 
+# OpenGV
+find_package(opengv REQUIRED)
+include_directories(${OPENGV_INCLUDE_DIRS})
+
 # PCL
 find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 #add_definitions(${PCL_DEFINITIONS})
 
+# Qt5
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(Qt5 COMPONENTS Widgets OpenGL REQUIRED)
-# get_target_property(QtCore_location Qt5::Widgets LOCATION)
 
 
 
