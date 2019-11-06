@@ -41,7 +41,7 @@ Then all pipeline steps are described in detail below.
 
 # Building #
 
-Building was tested on Ubuntu 14.04 only.
+Building was tested on Ubuntu 16.04 and 18.04.
 It would be expected that later Ubuntu versions could also be used with little effort.
 
 The following external dependencies are required:
@@ -55,7 +55,7 @@ The following external dependencies are required:
 * PCL
 * Qt
 
-OpenCV was used in version 3.1.0, for PCL version 1.7 was used and for Qt, version 4 was used.
+OpenCV was used in version 4.1.2, for PCL version 1.8.1 was used and for Qt, version 5 was used.
 
 The code can be built using CMake, for example as follows:
 ```
@@ -65,7 +65,9 @@ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make -j
 ```
 
+Note : Problems occur when running code on ubuntu18.04+ when PCL is built from source, but not when using `libpcl-dev` apt package.
 
+A Dockerfile is given to build everything from scratch in ubuntu 18.04.
 
 # Step-by-step example (individual images) #
 
@@ -105,7 +107,7 @@ For this example, the pipeline is run on the "terrace" DSLR training dataset of 
 * Use the external Poisson Surface Reconstruction tool [(download)](http://www.cs.jhu.edu/~misha/Code/PoissonRecon/) to perform the surface reconstruction:
   ```
   export POISSON_RECON_PATH=/path/to/PoissonRecon  # Adjust this to your environment.
-  ${POISSON_RECON_PATH}/PoissonRecon --in surface_reconstruction/point_cloud_with_normals.ply --out surface_reconstruction/surface.ply --depth 13 --color 16 --density
+  ${POISSON_RECON_PATH}/PoissonRecon --in surface_reconstruction/point_cloud_with_normals.ply --out surface_reconstruction/surface.ply --depth 13 --colors --data 16 --density
   ```
 * Create splats for points which are not well represented in the surface reconstruction:
   ```
