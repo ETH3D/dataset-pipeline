@@ -33,10 +33,10 @@
 #include <glog/logging.h>
 #include <QPainter>
 #include <QMessageBox>
+#include <Eigen/StdVector>
 
 #include "camera/camera_pinhole.h"
 #include "opengl/opengl_util.h"
-#include <Eigen/StdVector>
 
 namespace point_cloud_editor {
 

@@ -323,7 +323,7 @@ target_link_libraries(Test_ICP
   gtest
   gtest_main
 )
-target_compile_options(Test_ICP PRIVATE -g)
+
 add_test(Test_ICP
   Test_ICP
 )
