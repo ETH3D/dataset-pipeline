@@ -78,7 +78,7 @@ double CostCalculator::ComputeCost(
           &fixed_color_residuals_sum, &num_valid_fixed_color_residuals,
           &variable_color_residuals_sum, &num_valid_variable_color_residuals,
           &depth_residuals_sum, &num_valid_depth_residuals, nullptr, nullptr);
-      if (isnan(fixed_color_residuals_sum) || isnan(variable_color_residuals_sum) || isnan(depth_residuals_sum)) {
+      if (std::isnan(fixed_color_residuals_sum) || std::isnan(variable_color_residuals_sum) || std::isnan(depth_residuals_sum)) {
         LOG(ERROR) << "NaN appeared in ComputeCost() for image_id "
                    << image_id << " and point_scale " << point_scale;
       }

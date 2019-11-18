@@ -35,6 +35,7 @@
 #include <tinyxml2/tinyxml2.h>
 #include <boost/filesystem.hpp>
 #include <Eigen/Core>
+#include <Eigen/StdVector>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -57,6 +58,7 @@ struct PointObservation {
 // A cube map face color and depth image, together with SfM point observations
 // in this image and the image pose.
 struct CubeMapFace {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   enum class Direction {
     kFront = 0,
     kLeft,
@@ -84,6 +86,7 @@ struct CubeMapFace {
 
 // A laser scan filename with the scan pose.
 struct ScanPose {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   std::string scan_filename;
   Eigen::Matrix3f global_T_scan_rotation;
   Eigen::Vector3f global_T_scan_translation;
@@ -142,7 +145,7 @@ std::string ScanFilenameFromImagePath(const std::string& image_path) {
 bool LoadCubeMapFaces(
     const std::string& path,
     int cube_map_face_camera_id,
-    std::vector<CubeMapFace>* cube_map_faces) {
+    std::vector<CubeMapFace, Eigen::aligned_allocator<CubeMapFace>>* cube_map_faces) {
   std::string images_file_path = (boost::filesystem::path(path) / "images.txt").string();
   std::ifstream images_file_stream(images_file_path, std::ios::in);
   if (!images_file_stream) {
@@ -238,7 +241,7 @@ bool LoadPoints3D(
 }
 
 bool SaveScaledMeshLabProjectFile(
-    const std::vector<ScanPose>& scan_poses,
+    const std::vector<ScanPose, Eigen::aligned_allocator<ScanPose>>& scan_poses,
     const std::string& meshlab_project_path,
     const std::string& scans_path,
     float scaling_factor) {
@@ -405,7 +408,7 @@ int main(int argc, char** argv) {
   }
   
   // Load input.
-  std::vector<CubeMapFace> cube_map_faces;
+  std::vector<CubeMapFace, Eigen::aligned_allocator<CubeMapFace>> cube_map_faces;
   if (!LoadCubeMapFaces(sfm_model_path, cube_map_face_camera_id, &cube_map_faces)) {
     return EXIT_FAILURE;
   }
@@ -469,7 +472,7 @@ int main(int argc, char** argv) {
         continue;
       }
       float measured_depth = depth_image(iy, ix);
-      if (isinf(measured_depth) || isnan(measured_depth) || measured_depth <= 0.f) {
+      if (std::isinf(measured_depth) || std::isnan(measured_depth) || measured_depth <= 0.f) {
         continue;
       }
       
@@ -492,7 +495,7 @@ int main(int argc, char** argv) {
   // NOTE: No averaging of the potentially different cube map face poses for one
   // scan is done here because ideally the SfM task should be
   // formulated to fix the cube map faces together.
-  std::vector<ScanPose> scan_poses;
+  std::vector<ScanPose, Eigen::aligned_allocator<ScanPose>> scan_poses;
   for (const CubeMapFace& face : cube_map_faces) {
     std::string scan_filename = ScanFilenameFromImagePath(face.image_filename);
     bool have_pose = false;

@@ -32,6 +32,7 @@
 #include <pcl/point_types.h>
 #include <pcl/PolygonMesh.h>
 #include <opencv2/highgui/highgui.hpp>
+#include <random>
 
 #include "camera/camera_models.h"
 #include "opengl/mesh.h"

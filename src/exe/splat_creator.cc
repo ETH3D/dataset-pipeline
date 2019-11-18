@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
   for (std::size_t i = 0; i < point_normal_cloud->size(); ++ i) {
     const pcl::PointNormal& point_normal = point_normal_cloud->at(i);
     
-    if (isnan(point_normal.normal_x) || isnan(point_normal.normal_y) || isnan(point_normal.normal_z)) {
+    if (std::isnan(point_normal.normal_x) || std::isnan(point_normal.normal_y) || std::isnan(point_normal.normal_z)) {
       continue;
     }
     

@@ -140,7 +140,7 @@ bool BeyondPlaneSelectionTool::mousePressEvent(QMouseEvent* event) {
       }
     }
     
-    if (!isinf(best_distance)) {
+    if (!std::isinf(best_distance)) {
       points_.push_back(cloud.at(best_point_index).getVector3fMap());
       if (points_.size() == 3) {
         PerformSelection(points_);

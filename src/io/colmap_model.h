@@ -46,7 +46,7 @@ namespace opt {
 namespace io {
 
 struct MeshLabProjectMeshInfo;
-typedef std::vector<MeshLabProjectMeshInfo> MeshLabMeshInfoVector;
+typedef std::vector<MeshLabProjectMeshInfo, Eigen::aligned_allocator<MeshLabProjectMeshInfo>> MeshLabMeshInfoVector;
 
 // Holds data of a COLMAP camera.
 struct ColmapCamera {

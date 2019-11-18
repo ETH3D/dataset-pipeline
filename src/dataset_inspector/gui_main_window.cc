@@ -44,6 +44,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVariant>
+#include <QMimeData>
 
 #include "dataset_inspector/draw_mask_tool.h"
 #include "dataset_inspector/gui_image_widget.h"

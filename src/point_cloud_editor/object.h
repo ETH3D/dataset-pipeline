@@ -39,6 +39,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/PolygonMesh.h>
+#include <Eigen/StdVector>
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector3i)
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector3f)
 
 namespace point_cloud_editor {
 

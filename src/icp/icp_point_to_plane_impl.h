@@ -29,6 +29,8 @@
 
 #pragma once
 
+
+#include <Eigen/StdVector>
 #include <sophus/se3.hpp>
 #include <pcl/pcl_base.h>
 #include <pcl/registration/eigen.h>
@@ -225,7 +227,7 @@ class PointToPlaneICPImpl {
         
         // Apply the update to updated_intrinsics_list and updated_images.
         // Note the inversion of the delta here.
-        std::vector<Cloud> updated_clouds(clouds_.size());
+        std::vector<Cloud, Eigen::aligned_allocator<Cloud>> updated_clouds(clouds_.size());
         updated_clouds[0].cloud = clouds_[0].cloud;
         updated_clouds[0].global_TR_cloud = clouds_[0].global_TR_cloud;
         for (std::size_t cloud_index = 1; cloud_index < clouds_.size(); ++ cloud_index) {
@@ -311,7 +313,7 @@ class PointToPlaneICPImpl {
   int max_iterations_;
   double convergence_threshold_;
   
-  std::vector<Cloud> clouds_;
+  std::vector<Cloud, Eigen::aligned_allocator<Cloud>> clouds_;
   std::vector<Correspondences> correspondences_;
 };
 

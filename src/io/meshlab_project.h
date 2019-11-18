@@ -35,12 +35,14 @@
 #include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
+#include <Eigen/StdVector>
 
 namespace io {
 
 // Holds information about a mesh and its pose as given by a MeshLab project
 // file.
 struct MeshLabProjectMeshInfo {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Label from MeshLab project.
   std::string label;
   
@@ -54,7 +56,7 @@ struct MeshLabProjectMeshInfo {
   Eigen::Matrix4f global_T_mesh_full;
 };
 
-typedef std::vector<MeshLabProjectMeshInfo> MeshLabMeshInfoVector;
+typedef std::vector<MeshLabProjectMeshInfo, Eigen::aligned_allocator<MeshLabProjectMeshInfo>> MeshLabMeshInfoVector;
 
 
 // Loads MeshLabProjectMeshInfo from a MeshLab project file and appends them to
