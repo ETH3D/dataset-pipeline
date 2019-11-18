@@ -14,6 +14,7 @@ RUN cd opengv \
 
 RUN git clone https://github.com/opencv/opencv.git
 RUN cd opencv \
+  && git checkout 4.1.2 \
   && mkdir build \
   && cd build \
   && cmake -D WITH_CUDA=OFF .. \
