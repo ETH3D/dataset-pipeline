@@ -34,6 +34,8 @@
 #include <QPainter>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <Eigen/Core>
+#include <Eigen/StdVector>
 
 namespace dataset_inspector {
 
@@ -51,13 +53,10 @@ void LocalizeImageTool::AlignImageWithCorrespondences(const Camera& image_scale_
   opengv::bearingVectors_t bearing_vectors;
   opengv::points_t points;
   for (Correspondence correspondence : correspondences_) {
-    points.push_back(opengv::point_t(
-        correspondence.px,
-        correspondence.py,
-        correspondence.pz));
+    points.push_back(correspondence.p.cast<double>());
     
     Eigen::Vector2f nxy = image_scale_camera.UnprojectFromImageCoordinates(
-        Eigen::Vector2f(correspondence.ix, correspondence.iy));
+        correspondence.ixy);
     opengv::bearingVector_t bearing(nxy.x(), nxy.y(), 1.0);
     bearing_vectors.push_back(bearing.normalized());
   }
@@ -92,22 +91,21 @@ bool LocalizeImageTool::mousePressEvent(QMouseEvent* event, QPointF image_xy) {
   if (event->button() != Qt::LeftButton) {
     return false;
   }
+  const Eigen::Vector2f image_p(image_xy.x(), image_xy.y());
   
   if (select_point_) {
     // Find the closest 3D point and select it.
     float minimum_squared_distance = std::numeric_limits<float>::infinity();
     selected_point_index_ = -1;
-    const std::vector<ScanPoint>& scan_points = image_widget_->scan_points();
+    const std::vector<ScanPoint,Eigen::aligned_allocator<ScanPoint> >& scan_points = image_widget_->scan_points();
     for (const ScanPoint& scan_point : scan_points) {
-      float dx = scan_point.image_x - image_xy.x();
-      float dy = scan_point.image_y - image_xy.y();
+      Eigen::Vector2f delta_p = scan_point.image_p - image_p;
       
-      float squared_distance = dx * dx + dy * dy;
+      float squared_distance = delta_p.squaredNorm();
       if (squared_distance < minimum_squared_distance) {
         minimum_squared_distance = squared_distance;
         selected_point_index_ = scan_point.point_index;
-        selected_point_image_x_ = scan_point.image_x;
-        selected_point_image_y_ = scan_point.image_y;
+        selected_point_image = scan_point.image_p;
       }
     }
   } else {
@@ -116,13 +114,9 @@ bool LocalizeImageTool::mousePressEvent(QMouseEvent* event, QPointF image_xy) {
         image_widget_->colored_point_cloud()->at(selected_point_index_);
     
     Correspondence new_correspondence;
-    new_correspondence.px = point.x;
-    new_correspondence.py = point.y;
-    new_correspondence.pz = point.z;
-    new_correspondence.pix = selected_point_image_x_;
-    new_correspondence.piy = selected_point_image_y_;
-    new_correspondence.ix = image_xy.x();
-    new_correspondence.iy = image_xy.y();
+    new_correspondence.p = point.getVector3fMap();
+    new_correspondence.pi = selected_point_image;
+    new_correspondence.ixy = image_p;
     correspondences_.push_back(new_correspondence);
   }
   
@@ -176,7 +170,7 @@ void LocalizeImageTool::paintEvent(QPainter* painter, float view_scale) {
     painter->setPen(qRgb(255, 0, 0));
     painter->setBrush(Qt::NoBrush);
     painter->drawEllipse(
-        QPointF(selected_point_image_x_, selected_point_image_y_) + QPointF(0.5f, 0.5f),
+        QPointF(selected_point_image.x(), selected_point_image.y()) + QPointF(0.5f, 0.5f),
         radius, radius);
   }
   
@@ -185,12 +179,12 @@ void LocalizeImageTool::paintEvent(QPainter* painter, float view_scale) {
     painter->setPen(qRgb(255, 255, 255));
     painter->setBrush(Qt::NoBrush);
     painter->drawEllipse(
-        QPointF(correspondence.pix, correspondence.piy) + QPointF(0.5f, 0.5f),
+        QPointF(correspondence.pi.x(), correspondence.pi.y()) + QPointF(0.5f, 0.5f),
         radius, radius);
     
     painter->drawLine(
-        QPointF(correspondence.pix, correspondence.piy) + QPointF(0.5f, 0.5f),
-        QPointF(correspondence.ix, correspondence.iy) + QPointF(0.5f, 0.5f));
+        QPointF(correspondence.pi.x(), correspondence.pi.y()) + QPointF(0.5f, 0.5f),
+        QPointF(correspondence.ixy.x(), correspondence.ixy.y()) + QPointF(0.5f, 0.5f));
   }
 }
 

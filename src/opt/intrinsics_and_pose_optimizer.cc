@@ -32,6 +32,7 @@
 #include <fstream>
 #include <set>
 #include <unordered_set>
+#include <Eigen/Dense>
 
 #include "camera/camera_models.h"
 #include "opt/cost_calculator.h"
@@ -1049,17 +1050,16 @@ bool IntrinsicsAndPoseOptimizer::ComputePointIntensityAndJacobians(
   // [3 x K]: d(project) / d(intrinsics) at current intrinsics
   Eigen::Matrix<float, 3, kIntrinsicsParameterCount, Eigen::RowMajor>
       j_project_wrt_intrinsics;
+  auto j_project_wrt_intrinsics_xy = j_project_wrt_intrinsics.template topRows<2>();
   min_image_scale_camera.ProjectionToImageCoordinatesDerivativeByIntrinsics(
       transformed_point,
-      j_project_wrt_intrinsics.row(0).data(),
-      j_project_wrt_intrinsics.row(1).data());
+      j_project_wrt_intrinsics_xy);
   // Compute image scale derivatives.
   Eigen::Matrix<float, 2, kIntrinsicsParameterCount, Eigen::RowMajor>
       j_project_offset_wrt_intrinsics;
   min_image_scale_camera.ProjectionToImageCoordinatesDerivativeByIntrinsics(
       transformed_point_offset,
-      j_project_offset_wrt_intrinsics.row(0).data(),
-      j_project_offset_wrt_intrinsics.row(1).data());
+      j_project_offset_wrt_intrinsics);
   for (int i = 0; i < kIntrinsicsParameterCount; ++ i) {
     j_project_wrt_intrinsics(2, i) =
         ((j_project_offset_wrt_intrinsics(0, i) -
@@ -1087,17 +1087,14 @@ bool IntrinsicsAndPoseOptimizer::ComputePointIntensityAndJacobians(
   // [12 x 12]: d(multiply_matrix_matrix) / d(first_matrix) at identity *
   // [12 x  6]: d(exp(hat(delta_pose))) / d(delta_pose) at zero
   Eigen::Matrix<float, 3, 3, Eigen::RowMajor> j_project_wrt_p;
+  auto j_project_wrt_p_xy = j_project_wrt_p.template topRows<2>();
   min_image_scale_camera.ProjectionToImageCoordinatesDerivative(
-      transformed_point,
-      reinterpret_cast<Eigen::Vector3f*>(j_project_wrt_p.row(0).data()),
-      reinterpret_cast<Eigen::Vector3f*>(j_project_wrt_p.row(1).data()));
+      transformed_point, j_project_wrt_p_xy);
   // Compute image scale derivatives.
   Eigen::Matrix<float, 2, 3, Eigen::RowMajor>
       j_project_offset_wrt_p;
   min_image_scale_camera.ProjectionToImageCoordinatesDerivative(
-      transformed_point_offset,
-      reinterpret_cast<Eigen::Vector3f*>(j_project_offset_wrt_p.row(0).data()),
-      reinterpret_cast<Eigen::Vector3f*>(j_project_offset_wrt_p.row(1).data()));
+      transformed_point_offset, j_project_offset_wrt_p);
   for (int i = 0; i < 3; ++ i) {
     j_project_wrt_p(2, i) =
         ((j_project_offset_wrt_p(0, i) -

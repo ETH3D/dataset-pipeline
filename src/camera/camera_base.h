@@ -30,6 +30,7 @@
 #pragma once
 
 #include <memory>
+#include <Eigen/Core>
 
 namespace camera {
 // Base class for camera classes with different distortion models. Designed to
@@ -49,19 +50,18 @@ class CameraBase {
  public:
   // Intrinsic parameters for mapping between directions and pixels.
   struct PixelMappingIntrinsics {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     inline PixelMappingIntrinsics() {}
     inline PixelMappingIntrinsics(float _fx, float _fy, float _cx, float _cy)
-        : fx(_fx), fy(_fy), cx(_cx), cy(_cy) {}
-    
+        : f(_fx, _fy), c(_cx, _cy) {}
+
     // Focal lenghts.
-    float fx;
-    float fy;
-    
+    Eigen::Vector2f f;
+
     // Principal point. The origin convention depends on the context.
-    float cx;
-    float cy;
+    Eigen::Vector2f c;
   };
-  
+
   // Each type (except the invalid type) corresponds to a subclass, which
   // implements a particular camera model.
   enum class Type {
@@ -69,89 +69,103 @@ class CameraBase {
     kFOV = 0,
     kPolynomial = 1,
     kPolynomialTangential = 2,
+    kFullOpenCV = 10,
+    kPolynomial4 = 11,
     kFisheyePolynomial4 = 6,
     kFisheyePolynomialTangential = 3,
     kPinhole = 4,
     kBenchmark = 5,
+    kThinPrism = 14,
+    kSimplePinhole = 7,
+    kRadial = 8,
+    kRadialFisheye = 12,
+    kSimpleRadial = 9,
+    kSimpleRadialFisheye = 13
   };
-  
+
   // Default constructor, not for ordinary use!
   inline CameraBase() {}
 
   // Constructor used by the subclasses. The parameters relate to image
   // coordinates.
   CameraBase(int width, int height, float fx, float fy, float cx, float cy, Type type);
-  
+
   // Destructor.
   inline virtual ~CameraBase() {}
 
   // Returns a camera object which is scaled by the given factor.
   virtual CameraBase* ScaledBy(float factor) const = 0;
-  
+
   // Returns a camera object which is shifted by the given offset (in image
   // coordinates).
   virtual CameraBase* ShiftedBy(float cx_offset, float cy_offset) const = 0;
-  
+
   // Initializes the unprojection lookup image. If this camera type does not
   // benefit from it, this function does nothing.
   virtual void InitializeUnprojectionLookup() {}
 
   // Returns the camera type which identifies the subclass.
   inline Type type() const { return type_; }
-  
+
   // Returns the image width in pixels.
   inline int width() const { return width_; }
-  
+
   // Returns the image height in pixels.
   inline int height() const { return height_; }
-  
+
   // Returns the fx coefficient of the intrinsics matrix for image coordinates
   // (matrix entry (0, 0)).
-  inline float fx() const { return k_.fx; }
-  
+  inline float fx() const { return k_.f.x(); }
+
   // Returns the fy coefficient of the intrinsics matrix for image coordinates
   // (matrix entry (1, 1)).
-  inline float fy() const { return k_.fy; }
-  
+  inline float fy() const { return k_.f.y(); }
+  inline Eigen::Vector2f f() const { return k_.f; }
+
   // Returns the cx coefficient of the intrinsics matrix for image coordinates
   // (matrix entry (0, 2)).
-  inline float cx() const { return k_.cx; }
-  
+  inline float cx() const { return k_.c.x(); }
+
   // Returns the cy coefficient of the intrinsics matrix for image coordinates
   // (matrix entry (1, 2)).
-  inline float cy() const { return k_.cy; }
-  
+  inline float cy() const { return k_.c.y(); }
+  inline Eigen::Vector2f c() const { return k_.c; }
+
   // Returns the fx coefficient of the normalized intrinsics matrix for image
   // coordinates (matrix entry (0, 0)).
-  inline float nfx() const { return normalized_k_.fx; }
-  
+  inline float nfx() const { return normalized_k_.f.x(); }
+
   // Returns the fy coefficient of the normalized intrinsics matrix for image
   // coordinates (matrix entry (1, 1)).
-  inline float nfy() const { return normalized_k_.fy; }
-  
+  inline float nfy() const { return normalized_k_.f.y(); }
+  inline Eigen::Vector2f nf() const { return normalized_k_.f; }
+
   // Returns the cx coefficient of the normalized intrinsics matrix for image
   // coordinates (matrix entry (0, 2)).
-  inline float ncx() const { return normalized_k_.cx; }
-  
+  inline float ncx() const { return normalized_k_.c.x(); }
+
   // Returns the cy coefficient of the normalized intrinsics matrix for image
   // coordinates (matrix entry (1, 2)).
-  inline float ncy() const { return normalized_k_.cy; }
-  
+  inline float ncy() const { return normalized_k_.c.y(); }
+  inline Eigen::Vector2f nc() const { return normalized_k_.c; }
+
   // Returns the fx coefficient of the inverse intrinsics matrix for image
   // coordinates (matrix entry (0, 0)).
-  inline float fx_inv() const { return k_inv_.fx; }
-  
+  inline float fx_inv() const { return k_inv_.f.x(); }
+
   // Returns the fy coefficient of the inverse intrinsics matrix for image
   // coordinates (matrix entry (1, 1)).
-  inline float fy_inv() const { return k_inv_.fy; }
-  
+  inline float fy_inv() const { return k_inv_.f.y(); }
+  inline Eigen::Vector2f f_inv() const { return k_inv_.f; }
+
   // Returns the cx coefficient of the inverse intrinsics matrix for image
   // coordinates (matrix entry (0, 2)).
-  inline float cx_inv() const { return k_inv_.cx; }
-  
+  inline float cx_inv() const { return k_inv_.c.x(); }
+
   // Returns the cy coefficient of the inverse intrinsics matrix for image
   // coordinates (matrix entry (1, 2)).
-  inline float cy_inv() const { return k_inv_.cy; }
+  inline float cy_inv() const { return k_inv_.c.y(); }
+  inline Eigen::Vector2f c_inv() const { return k_inv_.c; }
 
  protected:
   // Intrinsics.
@@ -184,7 +198,7 @@ CameraBase::Type StringToType(const std::string& type);
 
 // This allows to call correctly templated functions easily with camera types
 // varying at runtime, making sure that all possible variants are compiled.
-// 
+//
 // The camera parameter must be referenced by _camera in the function call,
 // for example _target_camera if target_camera is passed for camera.
 // The camera type (for use with other templated objects within the call)
@@ -226,14 +240,50 @@ CameraBase::Type StringToType(const std::string& type);
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
       (__VA_ARGS__);                                                      \
+    } else if (object.type() == camera::CameraBase::Type::kRadial) {      \
+      typedef camera::RadialCamera _##object##_type;                      \
+      const _##object##_type& _##object =                                 \
+          static_cast<const _##object##_type&>(object);                   \
+      (void)_##object;                                                    \
+      (__VA_ARGS__);                                                      \
+    } else if (object.type() == camera::CameraBase::Type::kSimpleRadial) { \
+      typedef camera::SimpleRadialCamera _##object##_type;                \
+      const _##object##_type& _##object =                                 \
+          static_cast<const _##object##_type&>(object);                   \
+      (void)_##object;                                                    \
+      (__VA_ARGS__);                                                      \
+    } else if (object.type() == camera::CameraBase::Type::kRadialFisheye) {      \
+      typedef camera::RadialFisheyeCamera _##object##_type;               \
+      const _##object##_type& _##object =                                 \
+          static_cast<const _##object##_type&>(object);                   \
+      (void)_##object;                                                    \
+      (__VA_ARGS__);                                                      \
+    } else if (object.type() == camera::CameraBase::Type::kSimpleRadialFisheye) { \
+      typedef camera::SimpleRadialFisheyeCamera _##object##_type;         \
+      const _##object##_type& _##object =                                 \
+          static_cast<const _##object##_type&>(object);                   \
+      (void)_##object;                                                    \
+      (__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kPolynomialTangential) { \
       typedef camera::PolynomialTangentialCamera _##object##_type;        \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
       (__VA_ARGS__);                                                      \
+    } else if (object.type() == camera::CameraBase::Type::kFullOpenCV) { \
+      typedef camera::FullOpenCVCamera _##object##_type;                  \
+      const _##object##_type& _##object =                                 \
+          static_cast<const _##object##_type&>(object);                   \
+      (void)_##object;                                                    \
+      (__VA_ARGS__);                                                      \
     } else if (object.type() == camera::CameraBase::Type::kPinhole) {     \
       typedef camera::PinholeCamera _##object##_type;                     \
+      const _##object##_type& _##object =                                 \
+          static_cast<const _##object##_type&>(object);                   \
+      (void)_##object;                                                    \
+      (__VA_ARGS__);                                                      \
+    } else if (object.type() == camera::CameraBase::Type::kSimplePinhole) { \
+      typedef camera::SimplePinholeCamera _##object##_type;               \
       const _##object##_type& _##object =                                 \
           static_cast<const _##object##_type&>(object);                   \
       (void)_##object;                                                    \
@@ -273,11 +323,29 @@ CameraBase::Type StringToType(const std::string& type);
     } else if (camera_type == camera::CameraBase::Type::kPolynomial) {    \
       typedef camera::PolynomialCamera _##camera_type;                    \
       (__VA_ARGS__);                                                      \
+    } else if (camera_type == camera::CameraBase::Type::kRadial) {        \
+      typedef camera::RadialCamera _##camera_type;                        \
+      (__VA_ARGS__);                                                      \
+    } else if (camera_type == camera::CameraBase::Type::kSimpleRadial) {  \
+      typedef camera::SimpleRadialCamera _##camera_type;                  \
+      (__VA_ARGS__);                                                      \
+    } else if (camera_type == camera::CameraBase::Type::kRadialFisheye) { \
+      typedef camera::RadialFisheyeCamera _##camera_type;                        \
+      (__VA_ARGS__);                                                      \
+    } else if (camera_type == camera::CameraBase::Type::kSimpleRadialFisheye) { \
+      typedef camera::SimpleRadialFisheyeCamera _##camera_type;                  \
+      (__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kPolynomialTangential) { \
       typedef camera::PolynomialTangentialCamera _##camera_type;          \
       (__VA_ARGS__);                                                      \
+    } else if (camera_type == camera::CameraBase::Type::kFullOpenCV) { \
+      typedef camera::FullOpenCVCamera _##camera_type;          \
+      (__VA_ARGS__);                                                      \
     } else if (camera_type == camera::CameraBase::Type::kPinhole) {       \
       typedef camera::PinholeCamera _##camera_type;                       \
+      (__VA_ARGS__);                                                      \
+    } else if (camera_type == camera::CameraBase::Type::kSimplePinhole) { \
+      typedef camera::SimplePinholeCamera _##camera_type;                 \
       (__VA_ARGS__);                                                      \
     } else {                                                              \
       LOG(FATAL) << "CHOOSE_CAMERA_TYPE() encountered invalid type.";     \

@@ -35,106 +35,69 @@
 
 #include "camera/camera_base.h"
 #include "camera/camera_base_impl.h"
+#include "camera/camera_base_impl_radial.h"
 
 namespace camera {
 
-// Models pinhole cameras with a polynomial-tangential distortion model.
-class PolynomialTangentialCamera : public CameraBaseImpl<PolynomialTangentialCamera> {
+// Models pinhole cameras with a polynomial distortion model.
+class RadialCamera : public RadialBase<RadialCamera> {
  public:
-  PolynomialTangentialCamera(int width, int height, float fx, float fy, float cx,
-                             float cy, float k1, float k2, float p1, float p2);
+  RadialCamera(int width, int height, float fx, float fy, float cx,
+                   float cy, float k1, float k2);
 
-  PolynomialTangentialCamera(int width, int height, const float* parameters);
+  RadialCamera(int width, int height, const float* parameters);
 
   static constexpr int ParameterCount() {
-    return 4 + 4;
+    return 4 + 2;
   }
 
-  template <typename Derived>
-  inline Eigen::Vector2f Distort(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline float DistortionFactor(const float r2) const {
     const float k1 = distortion_parameters_.x();
     const float k2 = distortion_parameters_.y();
-    const float p1 = distortion_parameters_.z();
-    const float p2 = distortion_parameters_.w();
 
-    const float x2 = normalized_point.x() * normalized_point.x();
-    const float xy = normalized_point.x() * normalized_point.y();
-    const float y2 = normalized_point.y() * normalized_point.y();
-    const float r2 = x2 + y2;
-    const float radial =1 + r2 * (k1 + r2 * k2);
-
-    const Eigen::Vector2f dx_dy(2.f * p1 * xy + p2 * (r2 + 2.f * x2),
-                                2.f * p2 * xy + p1 * (r2 + 2.f * y2));
-    return normalized_point * radial + dx_dy;
+    return 1.0f + r2 * (k1 + r2 * k2);
   }
 
-
   // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 8 values each are returned for fx, fy, cx, cy,
-  // k1, k2, p1, p2.
+  // intrinsics. For x and y, 7 values each are returned for fx, fy, cx, cy,
+  // k1, k2.
   template <typename Derived1, typename Derived2>
   inline void NormalizedDerivativeByIntrinsics(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
+    const float radius_square = normalized_point.squaredNorm();
 
-    const float nx = normalized_point.x();
-    const float ny = normalized_point.y();
-    const float nx2 = nx * nx;
-    const float ny2 = ny * ny;
-    const float two_nx_ny = 2.f * nx * ny;
-    const float r2 = nx2 + ny2;
-
-    deriv_xy(0,0) = nx * r2;
-    deriv_xy(0,1) = deriv_xy(0,0) * r2;
-    deriv_xy(0,2) = two_nx_ny;
-    deriv_xy(0,3) = (r2 + 2.f * nx2);
-    deriv_xy(1,0) = ny * r2;
-    deriv_xy(1,1) = deriv_xy(1,0) * r2;
-    deriv_xy(1,2) = (r2 + 2.f * ny2);
-    deriv_xy(1,3) = two_nx_ny;
+    deriv_xy(0,0) = normalized_point.x() * radius_square;
+    deriv_xy(0,1) = deriv_xy(0,0) * radius_square;
+    deriv_xy(1,0) = normalized_point.y() * radius_square;
+    deriv_xy(1,1) = deriv_xy(1,0) * radius_square;
   }
 
-  // Derivation with Matlab:
-  // syms nx ny k1 k2 p1 p2
-  // x2 = nx * nx;
-  // xy = nx * ny;
-  // y2 = ny * ny;
-  // r2 = x2 + y2;
-  // radial = r2 * (k1 + r2 * k2);
-  // dx = 2 * p1 * xy + p2 * (r2 + 2 * x2);
-  // dy = 2 * p2 * xy + p1 * (r2 + 2 * y2);
-  // px = nx + radial * nx + dx;
-  // py = ny + radial * ny + dy;
-  // simplify(diff(px, nx))
-  // simplify(diff(px, ny))
-  // simplify(diff(py, nx))
-  // simplify(diff(py, ny))
-  // Returns (ddx/dnx, ddx/dny, ddy/dnx, ddy/dny) as in above order,
-  // with dx,dy being the distorted coords and d the partial derivative
-  // operator.
-  // Note: in case of small distortions, you may want to use (1, 0, 0, 1)
-  // as an approximation.
   template <typename Derived>
   inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float k1 = distortion_parameters_.x();
     const float k2 = distortion_parameters_.y();
-    const float p1 = distortion_parameters_.z();
-    const float p2 = distortion_parameters_.w();
 
     const float nx = normalized_point.x();
     const float ny = normalized_point.y();
-
     const float nx2 = nx * nx;
     const float ny2 = ny * ny;
+    const float nxny = nx * ny;
     const float r2 = nx2 + ny2;
 
-    const float term1 = 2*k1 + r2 * 4*k2;
-    const float term2 = 1 + r2 * (k1 + r2*k2);
-    const float ddx_dnx = nx2 * term1 + term2 + 6*p2*nx + 2*p1*ny;
-    const float ddx_dny = nx * ny * term1 + 2*p1*nx + 2*p2*ny;
+    const float term1 = 2*k1 + r2 * (4*k2);
+    const float term2 = 1 + r2 * (k1 + r2*(k2));
+    const float ddx_dnx = nx2 * term1 + term2;
+    const float ddx_dny = nxny * term1;
     const float ddy_dnx = ddx_dny;
-    const float ddy_dny = ny2 * term1 + term2 + 2*p2*nx + 6*p1*ny;
+    const float ddy_dny = ny2 * term1 + term2;
 
     return (Eigen::Matrix2f() << ddx_dnx, ddx_dny, ddy_dnx, ddy_dny).finished();
+  }
+
+  inline float DistortionDerivative(const float r2) const {
+    const float k1 = distortion_parameters_.x();
+    const float k2 = distortion_parameters_.y();
+    return 1.f + r2 * (3.f * k1 + r2 * 5.f * k2) ;
   }
 
   inline void GetParameters(float* parameters) const {
@@ -144,19 +107,16 @@ class PolynomialTangentialCamera : public CameraBaseImpl<PolynomialTangentialCam
     parameters[3] = cy();
     parameters[4] = distortion_parameters_.x();
     parameters[5] = distortion_parameters_.y();
-    parameters[6] = distortion_parameters_.z();
-    parameters[7] = distortion_parameters_.w();
   }
 
   // Returns the distortion parameters p1, p2, and p3.
-  inline const Eigen::Vector4f& distortion_parameters() const {
+  inline const Eigen::Vector2f& distortion_parameters() const {
     return distortion_parameters_;
   }
 
- private:
+  // The distortion parameters p1, p2, and p3.
+  Eigen::Vector2f distortion_parameters_;
 
-  // The distortion parameters k1, k2, p1, p2.
-  Eigen::Vector4f distortion_parameters_;
 };
 
 }  // namespace camera

@@ -27,25 +27,19 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
-#pragma once
-
-// Includes all camera models.
-#include "camera/camera_base.h"
-#include "camera_base_impl.h"
-#include "camera/camera_base_impl_fisheye.h"
-#include "camera/camera_base_impl_radial.h"
-#include "camera/camera_thin_prism.h"
-#include "camera/camera_benchmark.h"
-#include "camera/camera_fisheye_fov.h"
-#include "camera/camera_fisheye_polynomial_4.h"
-#include "camera/camera_fisheye_polynomial_tangential.h"
-#include "camera/camera_pinhole.h"
-#include "camera/camera_simple_pinhole.h"
-#include "camera/camera_polynomial.h"
-#include "camera/camera_polynomial_4.h"
-#include "camera/camera_full_opencv.h"
-#include "camera/camera_radial.h"
 #include "camera/camera_radial_fisheye.h"
-#include "camera/camera_simple_radial.h"
-#include "camera/camera_simple_radial_fisheye.h"
-#include "camera/camera_polynomial_tangential.h"
+
+#include <glog/logging.h>
+
+namespace camera {
+RadialFisheyeCamera::RadialFisheyeCamera(int width, int height, float fx, float fy,
+                                         float cx, float cy, float k1, float k2)
+    : FisheyeBase(width, height, fx, fy, cx, cy, Type::kRadialFisheye,
+      new RadialCamera(width, height, fx, fy, cx, cy, k1, k2)) {}
+
+RadialFisheyeCamera::RadialFisheyeCamera(int width, int height,
+                                         const float* parameters)
+    : FisheyeBase(width, height, parameters[0], parameters[1], parameters[2],
+                  parameters[3], Type::kRadialFisheye,
+                  new RadialCamera(width, height, parameters)) {}
+}  // namespace camera

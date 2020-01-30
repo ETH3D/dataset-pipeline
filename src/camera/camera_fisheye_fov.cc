@@ -36,31 +36,16 @@ namespace camera {
 
 FisheyeFOVCamera::FisheyeFOVCamera(int width, int height, float fx, float fy,
                                    float cx, float cy, float omega)
-    : CameraBase(width, height, fx, fy, cx, cy, Type::kFOV),
+    : CameraBaseImpl(width, height, fx, fy, cx, cy, Type::kFOV),
       omega_(omega),
-      two_tan_omega_half_(2.0f * tan(0.5f * omega)) {}
+      two_tan_omega_half_(2.0f * tan(0.5f * omega_)),
+      image_radius_(M_PI/(2 * omega_)) {}
 
 FisheyeFOVCamera::FisheyeFOVCamera(int width, int height,
                                    const float* parameters)
-    : CameraBase(width, height, parameters[0], parameters[1], parameters[2],
-                 parameters[3], Type::kFOV),
+    : CameraBaseImpl(width, height, parameters[0], parameters[1], parameters[2],
+                     parameters[3], Type::kFOV),
       omega_(parameters[4]),
-      two_tan_omega_half_(2.0f * tan(0.5f * omega_)) {}
-
-CameraBase* FisheyeFOVCamera::ScaledBy(float factor) const {
-  CHECK_NE(factor, 0.0f);
-  int scaled_width = static_cast<int>(factor * width_);
-  int scaled_height = static_cast<int>(factor * height_);
-  return new FisheyeFOVCamera(scaled_width, scaled_height,
-                              factor * fx(), factor * fy(),
-                              factor * (cx() + 0.5f) - 0.5f,
-                              factor * (cy() + 0.5f) - 0.5f, omega_);
-}
-
-CameraBase* FisheyeFOVCamera::ShiftedBy(float cx_offset,
-                                        float cy_offset) const {
-  return new FisheyeFOVCamera(width_, height_, fx(), fy(), cx() + cx_offset,
-                              cy() + cy_offset, omega_);
-}
-
+      two_tan_omega_half_(2.0f * tan(0.5f * omega_)),
+      image_radius_(M_PI/(2 * omega_)) {}
 }  // namespace camera

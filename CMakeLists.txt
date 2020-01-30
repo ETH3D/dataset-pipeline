@@ -2,6 +2,7 @@ project(ETH3DDatasetPipeline)
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+set(CMAKE_CXX_STANDARD 14)
 
 
 # External dependencies.
@@ -73,7 +74,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    add_definitions("-Wall -O2 -msse2 -msse3 -std=c++11")
+    add_definitions("-Wall -O2 -msse2 -msse3")
 endif()
 
 include_directories(
@@ -88,13 +89,21 @@ add_library(BaseLib
   src/base/util.cc
   
   src/camera/camera_base.cc
+  src/camera/camera_thin_prism.cc
   src/camera/camera_benchmark.cc
   src/camera/camera_fisheye_fov.cc
+  src/camera/camera_polynomial_4.cc
   src/camera/camera_fisheye_polynomial_4.cc
+  src/camera/camera_polynomial_tangential.cc
   src/camera/camera_fisheye_polynomial_tangential.cc
   src/camera/camera_pinhole.cc
+  src/camera/camera_simple_pinhole.cc
   src/camera/camera_polynomial.cc
-  src/camera/camera_polynomial_tangential.cc
+  src/camera/camera_radial.cc
+  src/camera/camera_radial_fisheye.cc
+  src/camera/camera_simple_radial.cc
+  src/camera/camera_simple_radial_fisheye.cc
+  src/camera/camera_full_opencv.cc
   
   src/icp/icp_point_to_plane.cc
   

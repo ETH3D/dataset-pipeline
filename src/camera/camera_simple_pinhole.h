@@ -36,19 +36,28 @@
 
 namespace camera {
 
-// Models pre-rectified pinhole cameras.
-class PinholeCamera : public CameraBaseImpl<PinholeCamera> {
+// Models pre-rectified simple pinhole cameras.
+class SimplePinholeCamera : public CameraBaseImpl<SimplePinholeCamera> {
  public:
-  PinholeCamera(int width, int height, float fx, float fy, float cx, float cy);
+  SimplePinholeCamera(int width, int height, float f, float cx, float cy);
 
-  PinholeCamera(int width, int height, const float* parameters);
+  SimplePinholeCamera(int width, int height, const float* parameters);
 
   static constexpr int ParameterCount() {
-    return 4;
+    return 3;
+  }
+
+  static constexpr bool UniqueFocalLength() {
+    return true;
   }
 
   template <typename Derived>
   inline Eigen::Vector2f Distort(const Eigen::MatrixBase<Derived>& normalized_point) const {
+    return normalized_point;
+  }
+
+  template <typename Derived>
+  inline Eigen::Vector2f Undistort(const Eigen::MatrixBase<Derived>& normalized_point) const {
     return normalized_point;
   }
 
@@ -59,11 +68,6 @@ class PinholeCamera : public CameraBaseImpl<PinholeCamera> {
   template <typename Derived>
   inline Eigen::Vector2f UnprojectFromImageCoordinates(const Eigen::MatrixBase<Derived>& pixel_position) const {
     return Undistort(Eigen::Vector2f(fx_inv() * pixel_position.x() + cx_inv(), fy_inv() * pixel_position.y() + cy_inv()));
-  }
-
-  template <typename Derived>
-  inline Eigen::Vector2f Undistort(const Eigen::MatrixBase<Derived>& normalized_point) const {
-    return normalized_point;
   }
 
   // Returns the derivatives of the image coordinates with respect to the
@@ -79,9 +83,8 @@ class PinholeCamera : public CameraBaseImpl<PinholeCamera> {
 
   inline void GetParameters(float* parameters) const {
     parameters[0] = fx();
-    parameters[1] = fy();
-    parameters[2] = cx();
-    parameters[3] = cy();
+    parameters[1] = cx();
+    parameters[2] = cy();
   }
 };
 
