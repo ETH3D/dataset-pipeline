@@ -77,7 +77,6 @@ struct DepthPoint {
       : image_p(image_x, image_y), depth(depth) {}
   
   Eigen::Vector2f image_p;  // 0 is at the center of the top left pixel.
-  float image_y;  // 0 is at the center of the top left pixel.
   float depth;
 };
 

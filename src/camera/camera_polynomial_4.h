@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -61,8 +62,11 @@ class Polynomial4Camera : public RadialBase<Polynomial4Camera> {
     return 1.0f + r2 * (k1 + r2 * (k2 + r2 * (k3 + r2 * k4)));
   }
 
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameters for deriv_xy. For x and y, 4 values each are written for
+  // k1, k2, k3, k4.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float radius_square = normalized_point.squaredNorm();
 
@@ -78,7 +82,7 @@ class Polynomial4Camera : public RadialBase<Polynomial4Camera> {
 
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float k1 = distortion_parameters_[0];
     const float k2 = distortion_parameters_[1];
     const float k3 = distortion_parameters_[2];
@@ -101,7 +105,7 @@ class Polynomial4Camera : public RadialBase<Polynomial4Camera> {
     return (Eigen::Matrix2f() << ddx_dnx, ddx_dny, ddy_dnx, ddy_dny).finished();
   }
 
-  inline float DistortionDerivative(const float r2) const {
+  inline float DistortedDerivativeByNormalized(const float r2) const {
     const float k1 = distortion_parameters_[0];
     const float k2 = distortion_parameters_[1];
     const float k3 = distortion_parameters_[2];
@@ -124,7 +128,6 @@ class Polynomial4Camera : public RadialBase<Polynomial4Camera> {
     parameters[7] = distortion_parameters_[3];
   }
 
-  // Returns the distortion parameters.
   inline const float* distortion_parameters() const {
     return distortion_parameters_;
   }

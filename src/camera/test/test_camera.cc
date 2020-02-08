@@ -140,7 +140,7 @@ void DistortAndUndistortTest(const Camera& test_camera) {
 }
 
 template <typename Camera>
-void NumericalProjectionToNormalizedTextureCoordinatesDerivative(
+void NumericalTextureDerivativeByWorld(
     const Camera& camera,
     const Eigen::Vector3f& at,
     Eigen::Vector3f& out_x,
@@ -149,24 +149,24 @@ void NumericalProjectionToNormalizedTextureCoordinatesDerivative(
   const float kTwoSteps = 2 * kStep;
 
   Eigen::Vector3f at_plus_x = Eigen::Vector3f(at.x() + kStep, at.y(), at.z());
-  Eigen::Vector2f proj_plus_x = camera.ProjectToNormalizedTextureCoordinates(
+  Eigen::Vector2f proj_plus_x = camera.NormalizedToTexture(
       Eigen::Vector2f(at_plus_x.x() / at_plus_x.z(), at_plus_x.y() / at_plus_x.z()));
   Eigen::Vector3f at_minus_x = Eigen::Vector3f(at.x() - kStep, at.y(), at.z());
-  Eigen::Vector2f proj_minus_x = camera.ProjectToNormalizedTextureCoordinates(
+  Eigen::Vector2f proj_minus_x = camera.NormalizedToTexture(
       Eigen::Vector2f(at_minus_x.x() / at_minus_x.z(), at_minus_x.y() / at_minus_x.z()));
 
   Eigen::Vector3f at_plus_y = Eigen::Vector3f(at.x(), at.y() + kStep, at.z());
-  Eigen::Vector2f proj_plus_y = camera.ProjectToNormalizedTextureCoordinates(
+  Eigen::Vector2f proj_plus_y = camera.NormalizedToTexture(
       Eigen::Vector2f(at_plus_y.x() / at_plus_y.z(), at_plus_y.y() / at_plus_y.z()));
   Eigen::Vector3f at_minus_y = Eigen::Vector3f(at.x(), at.y() - kStep, at.z());
-  Eigen::Vector2f proj_minus_y = camera.ProjectToNormalizedTextureCoordinates(
+  Eigen::Vector2f proj_minus_y = camera.NormalizedToTexture(
       Eigen::Vector2f(at_minus_y.x() / at_minus_y.z(), at_minus_y.y() / at_minus_y.z()));
 
   Eigen::Vector3f at_plus_z = Eigen::Vector3f(at.x(), at.y(), at.z() + kStep);
-  Eigen::Vector2f proj_plus_z = camera.ProjectToNormalizedTextureCoordinates(
+  Eigen::Vector2f proj_plus_z = camera.NormalizedToTexture(
       Eigen::Vector2f(at_plus_z.x() / at_plus_z.z(), at_plus_z.y() / at_plus_z.z()));
   Eigen::Vector3f at_minus_z = Eigen::Vector3f(at.x(), at.y(), at.z() - kStep);
-  Eigen::Vector2f proj_minus_z = camera.ProjectToNormalizedTextureCoordinates(
+  Eigen::Vector2f proj_minus_z = camera.NormalizedToTexture(
       Eigen::Vector2f(at_minus_z.x() / at_minus_z.z(), at_minus_z.y() / at_minus_z.z()));
 
   out_x = Eigen::Vector3f((proj_plus_x.x() - proj_minus_x.x()) / kTwoSteps,
@@ -178,13 +178,13 @@ void NumericalProjectionToNormalizedTextureCoordinatesDerivative(
 }
 
 template <typename Camera>
-void CheckProjectionToNormalizedTextureCoordinatesDerivative(
+void CheckTextureDerivativeByWorld(
     const Camera& camera,
     const Eigen::Vector3f& at) {
   Eigen::Matrix<float, 2, 3> result_xy;
-  camera.ProjectionToNormalizedTextureCoordinatesDerivative(at, result_xy);
+  camera.TextureDerivativeByWorld(at, result_xy);
   Eigen::Vector3f numerical_x, numerical_y;
-  NumericalProjectionToNormalizedTextureCoordinatesDerivative(camera, at, numerical_x,
+  NumericalTextureDerivativeByWorld(camera, at, numerical_x,
                                             numerical_y);
 
   EXPECT_NEAR(result_xy(0,0), numerical_x.x(), 1e-3f);
@@ -196,7 +196,7 @@ void CheckProjectionToNormalizedTextureCoordinatesDerivative(
 }
 
 template <typename Camera>
-void NumericalProjectionToImageCoordinatesDerivative(
+void NumericalImageDerivativeByWorld(
     const Camera& camera,
     const Eigen::Vector3f& at,
     Eigen::Vector3f& out_x,
@@ -205,24 +205,24 @@ void NumericalProjectionToImageCoordinatesDerivative(
   const float kTwoSteps = 2 * kStep;
 
   Eigen::Vector3f at_plus_x = Eigen::Vector3f(at.x() + kStep, at.y(), at.z());
-  Eigen::Vector2f proj_plus_x = camera.ProjectToImageCoordinates(
+  Eigen::Vector2f proj_plus_x = camera.NormalizedToImage(
       Eigen::Vector2f(at_plus_x.x() / at_plus_x.z(), at_plus_x.y() / at_plus_x.z()));
   Eigen::Vector3f at_minus_x = Eigen::Vector3f(at.x() - kStep, at.y(), at.z());
-  Eigen::Vector2f proj_minus_x = camera.ProjectToImageCoordinates(
+  Eigen::Vector2f proj_minus_x = camera.NormalizedToImage(
       Eigen::Vector2f(at_minus_x.x() / at_minus_x.z(), at_minus_x.y() / at_minus_x.z()));
 
   Eigen::Vector3f at_plus_y = Eigen::Vector3f(at.x(), at.y() + kStep, at.z());
-  Eigen::Vector2f proj_plus_y = camera.ProjectToImageCoordinates(
+  Eigen::Vector2f proj_plus_y = camera.NormalizedToImage(
       Eigen::Vector2f(at_plus_y.x() / at_plus_y.z(), at_plus_y.y() / at_plus_y.z()));
   Eigen::Vector3f at_minus_y = Eigen::Vector3f(at.x(), at.y() - kStep, at.z());
-  Eigen::Vector2f proj_minus_y = camera.ProjectToImageCoordinates(
+  Eigen::Vector2f proj_minus_y = camera.NormalizedToImage(
       Eigen::Vector2f(at_minus_y.x() / at_minus_y.z(), at_minus_y.y() / at_minus_y.z()));
 
   Eigen::Vector3f at_plus_z = Eigen::Vector3f(at.x(), at.y(), at.z() + kStep);
-  Eigen::Vector2f proj_plus_z = camera.ProjectToImageCoordinates(
+  Eigen::Vector2f proj_plus_z = camera.NormalizedToImage(
       Eigen::Vector2f(at_plus_z.x() / at_plus_z.z(), at_plus_z.y() / at_plus_z.z()));
   Eigen::Vector3f at_minus_z = Eigen::Vector3f(at.x(), at.y(), at.z() - kStep);
-  Eigen::Vector2f proj_minus_z = camera.ProjectToImageCoordinates(
+  Eigen::Vector2f proj_minus_z = camera.NormalizedToImage(
       Eigen::Vector2f(at_minus_z.x() / at_minus_z.z(), at_minus_z.y() / at_minus_z.z()));
 
   out_x = Eigen::Vector3f((proj_plus_x.x() - proj_minus_x.x()) / kTwoSteps,
@@ -234,13 +234,13 @@ void NumericalProjectionToImageCoordinatesDerivative(
 }
 
 template <typename Camera>
-void CheckProjectionToImageCoordinatesDerivative(const Camera& camera,
+void CheckImageDerivativeByWorld(const Camera& camera,
                                                  const Eigen::Vector3f& at) {
   Eigen::Matrix<float, 2, 3> result_xy;
-  camera.ProjectionToImageCoordinatesDerivative(at, result_xy);
+  camera.ImageDerivativeByWorld(at, result_xy);
   Eigen::Vector3f numerical_x, numerical_y;
-  NumericalProjectionToImageCoordinatesDerivative(camera, at, numerical_x,
-                                                  numerical_y);
+  NumericalImageDerivativeByWorld(camera, at,
+                                  numerical_x, numerical_y);
 
   EXPECT_NEAR(result_xy(0,0), numerical_x.x(), 250 * 1e-3f)
       << "Test failed for point " << at.x() << ", " << at.y() << ", " << at.z();
@@ -252,7 +252,7 @@ void CheckProjectionToImageCoordinatesDerivative(const Camera& camera,
 }
 
 template <typename Camera>
-void TestProjectionToImageCoordinatesDerivative(const Camera& camera) {
+void TestImageDerivativeByWorld(const Camera& camera) {
   const Eigen::Vector3f kTest3DPoints[] = {
       Eigen::Vector3f(0.0f, 0.0f, 3.0f),
       // Eigen::Vector3f(1.0f, 2.5f, 2.0f), // This was outside the cutoff radius for some cameras, resulting in errors.
@@ -264,7 +264,7 @@ void TestProjectionToImageCoordinatesDerivative(const Camera& camera) {
         camera.type() == camera::CameraBase::Type::kFOV) {
       continue;
     }
-    CheckProjectionToImageCoordinatesDerivative(camera, kTest3DPoints[i]);
+    CheckImageDerivativeByWorld(camera, kTest3DPoints[i]);
   }
 }
 
@@ -283,7 +283,7 @@ void CreateDeltaCamera(
 }
 
 template<class Camera>
-void NumericalProjectionToImageCoordinatesDerivativeByIntrinsics(
+void NumericalImageDerivativeByIntrinsics(
     const Camera& base_camera,
     const float nx, const float ny,
     const float* delta,
@@ -301,14 +301,14 @@ void NumericalProjectionToImageCoordinatesDerivativeByIntrinsics(
   CreateDeltaCamera(base_camera, plus_delta, &plus);
   CreateDeltaCamera(base_camera, minus_delta, &minus);
 
-  Eigen::Vector2f proj_plus_x = plus->ProjectToImageCoordinates(Eigen::Vector2f(nx, ny));
-  Eigen::Vector2f proj_minus_x = minus->ProjectToImageCoordinates(Eigen::Vector2f(nx, ny));
+  Eigen::Vector2f proj_plus_x = plus->NormalizedToImage(Eigen::Vector2f(nx, ny));
+  Eigen::Vector2f proj_minus_x = minus->NormalizedToImage(Eigen::Vector2f(nx, ny));
   *result_x = (proj_plus_x.x() - proj_minus_x.x()) / kTwoSteps;
   *result_y = (proj_plus_x.y() - proj_minus_x.y()) / kTwoSteps;
 }
 
 template<class Camera>
-void TestProjectionToImageCoordinatesDerivativeByIntrinsics(
+void TestImageDerivativeByIntrinsics(
     const Camera& camera) {
   constexpr int kNumParameters = Camera::ParameterCount();
   const Eigen::Vector3f kTest3DPoints[] = {
@@ -316,13 +316,12 @@ void TestProjectionToImageCoordinatesDerivativeByIntrinsics(
       Eigen::Vector3f(1.0f, 2.5f, 4.0f),
       Eigen::Vector3f(1.0f, 3.0f, 8.0f),
       Eigen::Vector3f(-0.1f, 0.4f, 0.8f)};
-      Eigen::Matrix<float, 2, kNumParameters, Eigen::RowMajor>
-      deriv_xy;
+  Eigen::Matrix<float, 2, kNumParameters, Eigen::RowMajor> deriv_xy;
   for (unsigned int i = 0; i < sizeof(kTest3DPoints) / sizeof(kTest3DPoints[0]); ++i) {
     const float nx = kTest3DPoints[i].x() / kTest3DPoints[i].z();
     const float ny = kTest3DPoints[i].y() / kTest3DPoints[i].z();
 
-    Eigen::Vector2f pxy = camera.ProjectToImageCoordinates(Eigen::Vector2f(nx, ny));
+    Eigen::Vector2f pxy = camera.NormalizedToImage(Eigen::Vector2f(nx, ny));
     if (pxy.x() < 0 || pxy.y() < 0 ||
         pxy.x() >= camera.width() ||
         pxy.y() >= camera.height()) {
@@ -330,7 +329,7 @@ void TestProjectionToImageCoordinatesDerivativeByIntrinsics(
       continue;
     }
 
-    camera.ProjectionToImageCoordinatesDerivativeByIntrinsics(
+    camera.ImageDerivativeByIntrinsics(
         kTest3DPoints[i], deriv_xy);
 
     float numerical_x, numerical_y;
@@ -338,7 +337,7 @@ void TestProjectionToImageCoordinatesDerivativeByIntrinsics(
     memset(delta, 0, kNumParameters * sizeof(delta[0]));
     for (int c = 0; c < kNumParameters; ++ c) {
       delta[c] = 1;
-      NumericalProjectionToImageCoordinatesDerivativeByIntrinsics(
+      NumericalImageDerivativeByIntrinsics(
           camera, nx, ny, delta, &numerical_x, &numerical_y);
       delta[c] = 0;
 
@@ -351,7 +350,7 @@ void TestProjectionToImageCoordinatesDerivativeByIntrinsics(
 }
 
 template<class Camera>
-void TestProjectionToNormalizedTextureCoordinatesDerivative(const Camera& camera) {
+void TestTextureDerivativeByWorld(const Camera& camera) {
   const Eigen::Vector3f kTest3DPoints[] = {
       Eigen::Vector3f(0.0f, 0.0f, 3.0f),
       // Eigen::Vector3f(1.0f, 2.5f, 2.0f), // This was outside the cutoff radius for some cameras, resulting in errors.
@@ -362,7 +361,7 @@ void TestProjectionToNormalizedTextureCoordinatesDerivative(const Camera& camera
         camera.type() == camera::CameraBase::Type::kFOV) {
       continue;
     }
-    CheckProjectionToNormalizedTextureCoordinatesDerivative(
+    CheckTextureDerivativeByWorld(
         camera, kTest3DPoints[i]);
   }
 }
@@ -402,15 +401,15 @@ void RunCameraModelTests(const Camera& camera) {
 
   // Compares the analytical projection-to-image-coordinates derivative to
   // numerical derivatives.
-  TestProjectionToImageCoordinatesDerivative(camera);
+  TestImageDerivativeByWorld(camera);
 
   // Compares the analytical projection-to-normalized-texture-coordinates
   // derivative to numerical derivatives.
-  TestProjectionToNormalizedTextureCoordinatesDerivative(camera);
+  TestTextureDerivativeByWorld(camera);
 
   // Compares the analytical projection-to-image-coordinates derivative by
   // the intrinics to numerical derivatives.
-  TestProjectionToImageCoordinatesDerivativeByIntrinsics(camera);
+  TestImageDerivativeByIntrinsics(camera);
 }
 }  // namespace
 

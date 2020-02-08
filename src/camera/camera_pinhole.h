@@ -52,13 +52,14 @@ class PinholeCamera : public CameraBaseImpl<PinholeCamera> {
     return normalized_point;
   }
 
-  inline Eigen::Vector2f UnprojectFromImageCoordinates(const int x, const int y) const {
-    return Undistort(Eigen::Vector2f(fx_inv() * x + cx_inv(), fy_inv() * y + cy_inv()));
+  template<typename T>
+  inline Eigen::Vector2f ImageToNormalized(const T x, const T y) const {
+    return ImageToDistorted(Eigen::Vector2f(x,y));
   }
 
   template <typename Derived>
-  inline Eigen::Vector2f UnprojectFromImageCoordinates(const Eigen::MatrixBase<Derived>& pixel_position) const {
-    return Undistort(Eigen::Vector2f(fx_inv() * pixel_position.x() + cx_inv(), fy_inv() * pixel_position.y() + cy_inv()));
+  inline Eigen::Vector2f ImageToNormalized(const Eigen::MatrixBase<Derived>& pixel_position) const {
+    return ImageToDistorted(pixel_position);
   }
 
   template <typename Derived>
@@ -66,14 +67,13 @@ class PinholeCamera : public CameraBaseImpl<PinholeCamera> {
     return normalized_point;
   }
 
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 4 values each are returned for fx, fy, cx, cy.
+  // Since no distortion is applied, nothing has to be done
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {}
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& /*normalized_point*/) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& /*normalized_point*/) const {
     return (Eigen::Matrix2f() << 1, 0, 0, 1).finished();
   }
 

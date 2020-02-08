@@ -60,7 +60,7 @@ void AccumulateScanObservationsForImage(
       const pcl::PointXYZRGB& point = scan->at(scan_point_index);
       Eigen::Vector3f image_point = image.image_T_global * point.getVector3fMap();
       if (image_point.z() > 0) {
-        Eigen::Vector2f pxy = highest_resolution_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+        Eigen::Vector2f pxy = highest_resolution_camera.NormalizedToImage(Eigen::Vector2f(
             image_point.x() / image_point.z(), image_point.y() / image_point.z()));
         int ix = pxy.x() + 0.5f;
         int iy = pxy.y() + 0.5f;
@@ -144,7 +144,7 @@ void CreateGroundTruthForImage(
       const pcl::PointXYZRGB& point = scan->at(scan_point_index);
       Eigen::Vector3f image_point = image.image_T_global * point.getVector3fMap();
       if (image_point.z() > 0) {
-        Eigen::Vector2f pxy = highest_resolution_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+        Eigen::Vector2f pxy = highest_resolution_camera.NormalizedToImage(Eigen::Vector2f(
             image_point.x() / image_point.z(), image_point.y() / image_point.z()));
         int ix = pxy.x() + 0.5f;
         int iy = pxy.y() + 0.5f;

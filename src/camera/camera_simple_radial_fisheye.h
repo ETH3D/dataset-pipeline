@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:

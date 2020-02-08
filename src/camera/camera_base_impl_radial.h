@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -46,7 +47,7 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
  public:
 
   RadialBase(int width, int height, float fx, float fy, float cx, float cy, CameraBase::Type type)
-  : CameraBaseImpl<Child>(width, height, fx, fy, cx, cy, type){}
+      : CameraBaseImpl<Child>(width, height, fx, fy, cx, cy, type){}
 
 
   template <typename Derived>
@@ -55,10 +56,6 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
     return normalized_point * child->DistortionFactor(normalized_point.squaredNorm());
   }
 
-      // This iterative Undistort() function should not be used in
-  // time critical code. An undistortion texture may be preferable,
-  // as used by the UnprojectFromImageCoordinates() methods. Undistort() is only
-  // used for calculating this undistortion texture once.
   template <typename Derived1, typename Derived2>
   inline Eigen::Vector2f IterativeUndistort(const Eigen::MatrixBase<Derived1>& distorted_point,
                                             const Eigen::MatrixBase<Derived2>& starting_point, bool* converged) const {
@@ -79,17 +76,18 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
       // (Non-squared) residuals.
       float delta_r = r_candidate - distorted_r;
 
-      // Accumulate H and b.
-      const float deriv = child->DistortionDerivative(undistorted_r2);
-      const float step = delta_r / deriv;
-      undistorted_r -= step;
-      undistorted_r2 = undistorted_r * undistorted_r;
-      if (step * step < kUndistortionEpsilon) {
+      if (delta_r * delta_r < kUndistortionEpsilon) {
         if (converged) {
           *converged = true;
         }
         break;
       }
+
+      // Accumulate H and b.
+      const float deriv = child->DistortedDerivativeByNormalized(undistorted_r2);
+      const float step = delta_r / deriv;
+      undistorted_r -= step;
+      undistorted_r2 = undistorted_r * undistorted_r;
     }
 
     return distorted_point * distorted_point.norm() / undistorted_r;
@@ -112,7 +110,7 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
     for (size_t i = 0; i < kNumIterations; ++i) {
       const float step = std::max(eps,
                                   abs(kRelStepSize * radius_squared));
-      ddr = (child->DistortionFactor(radius_squared) - child-> DistortionDerivative(radius_squared + step))/step;
+      ddr = (child->DistortionFactor(radius_squared) - child-> DistortedDerivativeByNormalized(radius_squared + step))/step;
       const float update_step = 1.f/ddr;
       radius_squared -= update_step;
       if (update_step < kMaxStepNorm) {

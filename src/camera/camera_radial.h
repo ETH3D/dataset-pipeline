@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -58,11 +59,11 @@ class RadialCamera : public RadialBase<RadialCamera> {
     return 1.0f + r2 * (k1 + r2 * k2);
   }
 
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 7 values each are returned for fx, fy, cx, cy,
-  // k1, k2.
+  // Applies the derivatives of the image coordinates with respect to the
+  // distortion parameters for deriv_xy. For x and y, 2 values each are written for
+  // k1 and k2.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float radius_square = normalized_point.squaredNorm();
 
@@ -73,7 +74,7 @@ class RadialCamera : public RadialBase<RadialCamera> {
   }
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float k1 = distortion_parameters_.x();
     const float k2 = distortion_parameters_.y();
 
@@ -94,7 +95,7 @@ class RadialCamera : public RadialBase<RadialCamera> {
     return (Eigen::Matrix2f() << ddx_dnx, ddx_dny, ddy_dnx, ddy_dny).finished();
   }
 
-  inline float DistortionDerivative(const float r2) const {
+  inline float DistortedDerivativeByNormalized(const float r2) const {
     const float k1 = distortion_parameters_.x();
     const float k2 = distortion_parameters_.y();
     return 1.f + r2 * (3.f * k1 + r2 * 5.f * k2) ;
@@ -109,12 +110,11 @@ class RadialCamera : public RadialBase<RadialCamera> {
     parameters[5] = distortion_parameters_.y();
   }
 
-  // Returns the distortion parameters p1, p2, and p3.
   inline const Eigen::Vector2f& distortion_parameters() const {
     return distortion_parameters_;
   }
 
-  // The distortion parameters p1, p2, and p3.
+  // The distortion parameters k1 and k2.
   Eigen::Vector2f distortion_parameters_;
 
 };

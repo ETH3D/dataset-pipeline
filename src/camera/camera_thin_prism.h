@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -75,11 +76,11 @@ class ThinPrismCamera : public CameraBaseImpl<ThinPrismCamera> {
     return normalized_point * radial + dx_dy;
   }
 
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 12 values each are returned for fx, fy, cx, cy,
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameters for deriv_xy. For x and y, 8 values each are written for
   // k1, k2, p1, p2, k3, k4, sx1, sy1.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float nx = normalized_point.x();
     const float ny = normalized_point.y();
@@ -107,7 +108,7 @@ class ThinPrismCamera : public CameraBaseImpl<ThinPrismCamera> {
   }
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float nx = normalized_point.x();
     const float ny = normalized_point.y();
     const float k1 = distortion_parameters_[0];
@@ -149,7 +150,6 @@ class ThinPrismCamera : public CameraBaseImpl<ThinPrismCamera> {
     parameters[11] = distortion_parameters_[7];
   }
 
-  // Returns the distortion parameters.
   inline const float* distortion_parameters() const {
     return distortion_parameters_;
   }

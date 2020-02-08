@@ -42,7 +42,8 @@
 namespace {
 template<class Camera>
 void TestRendererPixelAccuracy(Camera& camera) {
-  camera.InitializeUnprojectionLookup();
+  constexpr bool kDebug = false;
+  camera.InitializeUndistortionLookup();
   std::mt19937 generator(/*seed*/ 0);
   //assuming image is 640x480, must be divider of 160
   const int kStep = 20;
@@ -55,7 +56,7 @@ void TestRendererPixelAccuracy(Camera& camera) {
       opengl::SwitchOpenGLContext(opengl_context);
   
   // Create a mesh with a defined color and depth for each pixel in the camera.
-  std::uniform_real_distribution<> depth_distribution(0.2f, 20.0f);
+  std::uniform_real_distribution<> depth_distribution(0.5f, 20.0f);
   std::uniform_int_distribution<> color_distribution(0, 255);
 
   const int grid_width = camera.width()/kStep + 1;
@@ -67,11 +68,14 @@ void TestRendererPixelAccuracy(Camera& camera) {
     for (int x = 0; x <= camera.width(); x += kStep) {
       float depth = depth_distribution(generator);
       
-      Eigen::Vector2f nxy = camera.UnprojectFromImageCoordinates(x, y);
+      Eigen::Vector2f nxy = camera.ImageToNormalized(x, y);
       Eigen::Vector3f camera_point =
           Eigen::Vector3f(depth * nxy.x(), depth * nxy.y(), depth);
 
       if(isinf(nxy.squaredNorm())){
+        LOG_FIRST_N(WARNING, 1) << "Some points are not undistortable"
+                                << "This will not be able to test the points at"
+                                << "boundaries valid undistortion";
         camera_point.z() = -1;
       }
 
@@ -93,29 +97,23 @@ void TestRendererPixelAccuracy(Camera& camera) {
   polygon_mesh.polygons.reserve(num_faces);
   for (int y = 0; y < grid_height - 1; ++y) {
     for (int x = 0; x < grid_width - 1; ++x) {
-      const int topLeftId = x + y * grid_width;
-      const int topRightId = (x + 1) + y * grid_width;
-      const int bottomLeftId = x + (y + 1) * grid_width;
-      const int bottomRightId = (x + 1) + (y + 1) * grid_width;
+      const int top_left_index = x + y * grid_width;
+      const int top_right_index = (x + 1) + y * grid_width;
+      const int bottom_left_index = x + (y + 1) * grid_width;
+      const int bottom_right_index = (x + 1) + (y + 1) * grid_width;
       // Top left.
+      pcl::Vertices face;
+      face.vertices.resize(3);
+      face.vertices[0] = top_left_index;
+      face.vertices[1] = top_right_index;
+      face.vertices[2] = bottom_left_index;
+      polygon_mesh.polygons.push_back(face);
 
-      if(mesh_vertex_cloud.at(topLeftId).z > 0 &&
-         mesh_vertex_cloud.at(topRightId).z > 0 &&
-         mesh_vertex_cloud.at(bottomLeftId).z > 0 &&
-         mesh_vertex_cloud.at(bottomRightId).z > 0){
-        pcl::Vertices face;
-        face.vertices.resize(3);
-        face.vertices[0] = topLeftId;
-        face.vertices[1] = topRightId;
-        face.vertices[2] = bottomLeftId;
-        polygon_mesh.polygons.push_back(face);
-      
-        // Bottom right.
-        face.vertices[0] = bottomLeftId;
-        face.vertices[1] = topRightId;
-        face.vertices[2] = bottomRightId;
-        polygon_mesh.polygons.push_back(face);
-      }
+      // Bottom right.
+      face.vertices[0] = bottom_left_index;
+      face.vertices[1] = top_right_index;
+      face.vertices[2] = bottom_right_index;
+      polygon_mesh.polygons.push_back(face);
     }
   }
   
@@ -141,26 +139,27 @@ void TestRendererPixelAccuracy(Camera& camera) {
   renderer->DownloadDepthResult(camera.width(), camera.height(), depth_image.get());
   cv::Mat_<cv::Vec3b> color_image(camera.height(), camera.width());
   renderer->DownloadColorResult(camera.width(), camera.height(), color_image.data);
+  cv::Mat_<float> depth_mat(camera.height(), camera.width(), depth_image.get());
   
   // DEBUG: display.
-  cv::Mat_<float> depth_mat(camera.height(), camera.width(), depth_image.get());
-  cv::imshow("rendered depth", depth_mat * (20.f/255.f));
-  cv::imshow("rendered color", color_image);
-  cv::waitKey(0);
+  if (kDebug){
+    cv::imshow("rendered depth", depth_mat * (20.f/255.f));
+    cv::imshow("rendered color", color_image);
+    cv::waitKey(0);
+  }
   
   // Compare rendered images to the mesh.
-  // NOTE: Due to placing vertices exactly at pixel positions and the fill rule
-  // used in rendering, the right- and bottom-most pixels will not be covered by
-  // the mesh. Thus the test checks that they are still at their original value.
+  // NOTE: Due to fill rule used in rendering, the right- and bottom-most pixels will not be covered by
+  // the mesh, this happens when undistortion fails
   std::size_t i = 0;
   for (int y = 0; y < camera.height(); y += kStep) {
     for (int x = 0; x < camera.width(); x += kStep) {
       cv::Vec3b rgb_color = color_image(y, x);
       float depth_value = depth_mat(y, x);
-      pcl::PointXYZRGB point = mesh_vertex_cloud[i];
+      pcl::PointXYZRGB point = mesh_vertex_cloud[x/kStep + y/kStep * grid_width];
       Eigen::Vector3f p = point.getVector3fMap();
-      Eigen::Vector2f image_point = camera.ProjectToImageCoordinates(Eigen::Vector2f(p.x()/p.z(), p.y()/p.z()));
-      if(!isinf(image_point.squaredNorm())){
+      if(point.z > 0){
+        Eigen::Vector2f image_point = camera.NormalizedToImage(Eigen::Vector2f(p.x()/p.z(), p.y()/p.z()));
         if (depth_value > 0) {
           ASSERT_NEAR(x, image_point.x(), 1e-2f);
           ASSERT_NEAR(y, image_point.y(), 1e-2f);
@@ -173,16 +172,18 @@ void TestRendererPixelAccuracy(Camera& camera) {
           EXPECT_EQ(rgb_color[2], point.b)
               << "Error at pixel (" << x << ", " << y << ")";
         } else {
-          ASSERT_EQ(depth_value, 0)
-              << "Error at pixel (" << x << ", " << y << ")";
+          // Such Point can only be because of fisheye camera
+          // and fill rule : point in itslef can be undistorted, but not one of its neighbours
+          // TODO : check if thi is true ?
           ASSERT_EQ(rgb_color[0], 0)
               << "Error at pixel (" << x << ", " << y << ")";
           ASSERT_EQ(rgb_color[1], 0)
               << "Error at pixel (" << x << ", " << y << ")";
           ASSERT_EQ(rgb_color[2], 0)
               << "Error at pixel (" << x << ", " << y << ")";
-          ASSERT_TRUE((depth_mat(y+1, x) == 0 || depth_mat(y, x+1) == 0));
         }
+      }else{
+        ASSERT_EQ(depth_value, 0);
       }
       ++ i;
     }
@@ -209,7 +210,7 @@ constexpr double kCY = 239.5;
 
 constexpr float kOmega = 1.0f;
 
-constexpr float kK1 = 0.13f;
+constexpr float kK1 = 0.23f;
 constexpr float kK2 = -0.66f;
 constexpr float kK3 = 0.64f;
 

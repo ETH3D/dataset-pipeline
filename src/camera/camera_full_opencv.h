@@ -77,11 +77,11 @@ class FullOpenCVCamera : public CameraBaseImpl<FullOpenCVCamera> {
     return radial * normalized_point + dx_dy;
   }
 
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 11 values each are returned for fx, fy, cx, cy,
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameters for deriv_xy. For x and y, 8 values each are written for
   // k1, k2, k3, k4, k5, k6, p1, p2.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float k1 = distortion_parameters_[0];
     const float k2 = distortion_parameters_[1];
@@ -124,7 +124,7 @@ class FullOpenCVCamera : public CameraBaseImpl<FullOpenCVCamera> {
   }
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float k1 = distortion_parameters_[0];
     const float k2 = distortion_parameters_[1];
     const float p1 = distortion_parameters_[2];
@@ -186,11 +186,13 @@ class FullOpenCVCamera : public CameraBaseImpl<FullOpenCVCamera> {
     parameters[11] = distortion_parameters_[7];
   }
 
+
   inline const float* distortion_parameters() const {
     return distortion_parameters_;
   }
 
  private:
+  // The distortion parameters k1, k2, k3, k4, k5, k6, p1, p2.
   float distortion_parameters_[8];
 
 };

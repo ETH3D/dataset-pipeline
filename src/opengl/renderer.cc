@@ -185,7 +185,6 @@ const GLchar* RendererProgram<
 
 const GLchar*
 RendererProgram<camera::FisheyePolynomial4Camera>::GetShaderDistortionCode() const {
-  // (Mis)using localPoint.w for intermediate results.
   return "float nx = localPoint.x / localPoint.z;\n"
          "float ny = localPoint.y / localPoint.z;\n"
          "float r2 = nx * nx + ny * ny;\n"
@@ -235,7 +234,6 @@ const GLchar* RendererProgram<
 
 const GLchar*
 RendererProgram<camera::FisheyePolynomialTangentialCamera>::GetShaderDistortionCode() const {
-  // (Mis)using localPoint.w for intermediate results.
   return "float nx = localPoint.x / localPoint.z;\n"
          "float ny = localPoint.y / localPoint.z;\n"
          "float r2 = nx * nx + ny * ny;\n"
@@ -326,7 +324,6 @@ const GLchar* RendererProgram<
 
 const GLchar*
 RendererProgram<camera::RadialCamera>::GetShaderDistortionCode() const {
-  // (Mis)using localPoint.w for intermediate results.
   return "float nx = localPoint.x / localPoint.z;\n"
          "float ny = localPoint.y / localPoint.z;\n"
          "float r2 = nx * nx + ny * ny;\n"
@@ -362,7 +359,6 @@ const GLchar* RendererProgram<
 
 const GLchar*
 RendererProgram<camera::RadialFisheyeCamera>::GetShaderDistortionCode() const {
-  // (Mis)using localPoint.w for intermediate results.
   return "float nx = localPoint.x / localPoint.z;\n"
          "float ny = localPoint.y / localPoint.z;\n"
          "float r2 = nx * nx + ny * ny;\n"
@@ -408,10 +404,10 @@ RendererProgram<camera::SimpleRadialCamera>::GetShaderDistortionCode() const {
   return "float r2 = (localPoint.x * localPoint.x + localPoint.y"
          "               * localPoint.y) / (localPoint.z * localPoint.z);\n"
          "if(r2 > radius_cutoff_squared){"
-         " r2 = 99.0;"
+         "  r2 = 99.0;"
          "}else{"
-         "r2 = 1.0 + r2 * k;"
-         " }\n"
+         "  r2 = 1.0 + r2 * k;"
+         "}\n"
          "localPoint.x = r2 * localPoint.x;\n"
          "localPoint.y = r2 * localPoint.y;\n";
 }

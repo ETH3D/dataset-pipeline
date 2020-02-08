@@ -530,7 +530,7 @@ void ImageWidget::UpdateScanPoints(
     const pcl::PointXYZRGB& point = colored_point_cloud_->at(i);
     Eigen::Vector3f image_point = image_R_global * point.getVector3fMap() + image_T_global;
     if (image_point.z() > 0) {
-      Eigen::Vector2f pxy = image_scale_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+      Eigen::Vector2f pxy = image_scale_camera.NormalizedToImage(Eigen::Vector2f(
           image_point.x() / image_point.z(), image_point.y() / image_point.z()));
       int ix = pxy.x() + 0.5f;
       int iy = pxy.y() + 0.5f;
@@ -608,7 +608,7 @@ void ImageWidget::UpdateDepthMap(
     const pcl::PointXYZRGB& point = colored_point_cloud_->at(i);
     Eigen::Vector3f image_point = image_R_global * point.getVector3fMap() + image_T_global;
     if (image_point.z() > 0) {
-      Eigen::Vector2f pxy = image_scale_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+      Eigen::Vector2f pxy = image_scale_camera.NormalizedToImage(Eigen::Vector2f(
           image_point.x() / image_point.z(), image_point.y() / image_point.z()));
       int ix = pxy.x() + 0.5f;
       int iy = pxy.y() + 0.5f;

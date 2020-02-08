@@ -63,13 +63,14 @@ class FisheyeFOVCamera : public CameraBaseImpl<FisheyeFOVCamera> {
     return normalized_point * factor;
   }
 
-  inline Eigen::Vector2f UnprojectFromImageCoordinates(const int x, const int y) const {
-    return Undistort(Eigen::Vector2f(fx_inv() * x + cx_inv(), fy_inv() * y + cy_inv()));
+  template<typename T>
+  inline Eigen::Vector2f ImageToNormalized(const T x, const T y) const {
+    return Undistort(ImageToDistorted(Eigen::Vector2f(x, y)));
   }
 
   template <typename Derived>
-  inline Eigen::Vector2f UnprojectFromImageCoordinates(const Eigen::MatrixBase<Derived>& pixel_position) const {
-    return Undistort(Eigen::Vector2f(fx_inv() * pixel_position.x() + cx_inv(), fy_inv() * pixel_position.y() + cy_inv()));
+  inline Eigen::Vector2f ImageToNormalized(const Eigen::MatrixBase<Derived>& pixel_position) const {
+    return Undistort(ImageToDistorted(pixel_position));
   }
 
   template <typename Derived>
@@ -84,12 +85,11 @@ class FisheyeFOVCamera : public CameraBaseImpl<FisheyeFOVCamera> {
     return factor * distorted_point;
   }
 
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 5 values each are returned for fx, fy, cx, cy,
+  // Returns the derivatives of the distorted coordinates with respect to the
+  // distortion parameters. For x and y, 1 value each is returned for
   // omega.
-  // NOTE: This could probably be optimized by re-using terms from Distort().
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float radius_square = normalized_point.squaredNorm();
     const float radius = sqrtf(radius_square);
@@ -130,7 +130,7 @@ class FisheyeFOVCamera : public CameraBaseImpl<FisheyeFOVCamera> {
   // with dx,dy being the distorted coords and d the partial derivative
   // operator.
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float nx_times_ny = normalized_point.x() * normalized_point.y();
     const float nxs = normalized_point.x() * normalized_point.x();
     const float nys = normalized_point.y() * normalized_point.y();

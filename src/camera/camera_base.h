@@ -102,7 +102,7 @@ class CameraBase {
 
   // Initializes the unprojection lookup image. If this camera type does not
   // benefit from it, this function does nothing.
-  virtual void InitializeUnprojectionLookup() {}
+  virtual void InitializeUndistortionLookup() {}
 
   // Returns the camera type which identifies the subclass.
   inline Type type() const { return type_; }

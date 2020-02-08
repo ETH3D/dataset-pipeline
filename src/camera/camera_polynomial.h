@@ -59,8 +59,11 @@ class PolynomialCamera : public RadialBase<PolynomialCamera> {
     return 1.0f + r2 * (k1 + r2 * (k2 + r2 * k3));
   }
 
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameters for deriv_xy. For x and y, 3 values each are written for
+  // k1, k2, k3.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float radius_square = normalized_point.squaredNorm();
 
@@ -74,7 +77,7 @@ class PolynomialCamera : public RadialBase<PolynomialCamera> {
 
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float k1 = distortion_parameters_.x();
     const float k2 = distortion_parameters_.y();
     const float k3 = distortion_parameters_.z();
@@ -96,7 +99,7 @@ class PolynomialCamera : public RadialBase<PolynomialCamera> {
     return (Eigen::Matrix2f() << ddx_dnx, ddx_dny, ddy_dnx, ddy_dny).finished();
   }
 
-  inline float DistortionDerivative(const float r2) const {
+  inline float DistortedDerivativeByNormalized(const float r2) const {
     return 1.0f + r2 * (3.0f * distortion_parameters_.x() +
                   r2 * (5.0f * distortion_parameters_.y() +
                   r2 * 7.0f * distortion_parameters_.z()));
@@ -112,7 +115,6 @@ class PolynomialCamera : public RadialBase<PolynomialCamera> {
     parameters[6] = distortion_parameters_.z();
   }
 
-  // Returns the distortion parameters k1, k2, and k3.
   inline const Eigen::Vector3f& distortion_parameters() const {
     return distortion_parameters_;
   }

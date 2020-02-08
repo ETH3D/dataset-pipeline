@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -47,38 +48,44 @@ template <class Child> class CameraBaseImpl : public CameraBase {
  public:
 
   CameraBaseImpl(int width, int height, float fx, float fy, float cx, float cy, CameraBase::Type type)
-  : CameraBase(width, height, fx, fy, cx, cy, type),
-    undistortion_lookup_(nullptr),
-    radius_cutoff_squared_(std::numeric_limits<float>::infinity()){}
+      : CameraBase(width, height, fx, fy, cx, cy, type),
+        undistortion_lookup_(nullptr),
+        radius_cutoff_squared_(std::numeric_limits<float>::infinity()){}
 
   ~CameraBaseImpl() {
-  delete[] undistortion_lookup_;
+    delete[] undistortion_lookup_;
   }
 
+  // If this returns true, the camera has a single focal
+  // length parameter, so the first three camera parameters
+  // are f, cx, cy.
+  // Otherwise, the camera has separate focal length parameters
+  // for the x and y direction, so the first four camera parameters
+  // are fx, fy, cx, cy
   static constexpr bool UniqueFocalLength() {
     return false;
   }
 
   // Returns a camera object which is scaled by the given factor.
   CameraBase* ScaledBy(float factor) const override {
-  CHECK_NE(factor, 0.0f);
-  int scaled_width = static_cast<int>(factor * width_);
-  int scaled_height = static_cast<int>(factor * height_);
-  const Child* child = static_cast<const Child*>(this);
-  float parameters[child->ParameterCount()];
-  child->GetParameters(parameters);
-  if(!child->UniqueFocalLength()){
-    parameters[0] *= factor;
-    parameters[1] *= factor;
-    parameters[2] = factor * (cx() + 0.5f) - 0.5f;
-    parameters[3] = factor * (cy() + 0.5f) - 0.5f;
-  }else{
-    parameters[0] *= factor;
-    parameters[1] = factor * (cx() + 0.5f) - 0.5f;
-    parameters[2] = factor * (cy() + 0.5f) - 0.5f;
-  }
-  return new Child(
-      scaled_width, scaled_height, parameters);
+    CHECK_NE(factor, 0.0f);
+    int scaled_width = static_cast<int>(factor * width_ + 0.5f);
+    int scaled_height = static_cast<int>(factor * height_ + 0.5f);
+    const Child* child = static_cast<const Child*>(this);
+    float parameters[child->ParameterCount()];
+    child->GetParameters(parameters);
+    if(!child->UniqueFocalLength()){
+      parameters[0] *= factor;
+      parameters[1] *= factor;
+      parameters[2] = factor * (cx() + 0.5f) - 0.5f;
+      parameters[3] = factor * (cy() + 0.5f) - 0.5f;
+    }else{
+      parameters[0] *= factor;
+      parameters[1] = factor * (cx() + 0.5f) - 0.5f;
+      parameters[2] = factor * (cy() + 0.5f) - 0.5f;
+    }
+    return new Child(
+        scaled_width, scaled_height, parameters);
   }
 
   // Returns a camera object which is shifted by the given offset (in image
@@ -94,7 +101,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
       parameters[1] += cx_offset;
       parameters[2] += cy_offset;
     }
-  return new Child(
+    return new Child(
       width_, height_, parameters);
   }
 
@@ -102,65 +109,89 @@ template <class Child> class CameraBaseImpl : public CameraBase {
     return new Child(width_, height_, parameters);
   }
 
+  // General strategy of this camera class:
+  // Projection operation from World 3D points to Image or Texture is decomposed
+  // in several projection point spaces :
+  // World (X,Y,Z) -> Normalized -> Distorted -> Image (or Texture)
+  // As such projection from space A to B will be called AToB
+  // Besides, when computing A with respect to parameters B
+  // (be it coordinates or intrinsics or distortion parameters)
+  // It will be called AderivativeByB
+
+  // The following function implement the classical intrinsics matrix multiplication
+  // Assuming we have the point p = (x,y,1) and the matrix H is
+  // [fx,  0, cx]
+  // [ 0, fy, cy]
+  // [ 0,  0,  1]
+  // We perorm either H * p or H^-1 * p, ie (fx * x + cx, fy * y + cy, 1), from which
+  // we take only the first 2 coordinates
+  // To improve performance, the point p is only 2D and the matrix is never actually built
   template<typename Derived>
-  inline Eigen::Vector2f ImagePlaneToWorld(const Eigen::MatrixBase<Derived>& image_point) const {
-    return f_inv().asDiagonal() * image_point + c_inv();
+  inline Eigen::Vector2f ImageToDistorted(const Eigen::MatrixBase<Derived>& image_point) const {
+    return f_inv().cwiseProduct(image_point) + c_inv();
   }
 
   template<typename Derived>
-  inline Eigen::Vector2f WorldToImagePlane(const Eigen::MatrixBase<Derived>& point) const {
-    return f().asDiagonal() * point + c();
+  inline Eigen::Vector2f DistortedToImage(const Eigen::MatrixBase<Derived>& point) const {
+    return f().cwiseProduct(point) + c();
   }
 
   template<typename Derived>
-  inline Eigen::Vector2f WorldToTexturePlane(const Eigen::MatrixBase<Derived>& image_point) const {
-    return nf().asDiagonal() * image_point + nc();
+  inline Eigen::Vector2f DistortedToTexture(const Eigen::MatrixBase<Derived>& image_point) const {
+    return nf().cwiseProduct(image_point) + nc();
   }
 
   template <typename Derived>
-  inline Eigen::Vector2f ProjectToNormalizedTextureCoordinates(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Vector2f NormalizedToTexture(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float r2 = normalized_point.squaredNorm();
     if (isinf(r2) || r2 > radius_cutoff_squared_) {
       return normalized_point * std::numeric_limits<float>::infinity();
     }else{
       const Eigen::Vector2f distorted_point = static_cast<const Child*>(this)->Distort(normalized_point);
-      return WorldToTexturePlane(distorted_point);
+      return DistortedToTexture(distorted_point);
     }
   }
 
   template <typename Derived>
-  inline Eigen::Vector2f ProjectToImageCoordinates(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Vector2f NormalizedToImage(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float r2 = normalized_point.squaredNorm();
     if (isinf(r2) || r2 > radius_cutoff_squared_) {
       return normalized_point * std::numeric_limits<float>::infinity();
     }else{
       const Eigen::Vector2f distorted_point = static_cast<const Child*>(this)->Distort(normalized_point);
-      return WorldToImagePlane(distorted_point);
+      return DistortedToImage(distorted_point);
     }
   }
 
-  inline Eigen::Vector2f UnprojectFromImageCoordinates(const int x, const int y) const {
+  inline Eigen::Vector2f ImageToNormalized(const int x, const int y) const {
     Eigen::Vector2i clamped_pixel(
         std::max(0, std::min(width() - 1, x)),
         std::max(0, std::min(height() - 1, y)));
     if(undistortion_lookup_){
-      return undistortionLookup(clamped_pixel.x(), clamped_pixel.y());
+      return UndistortionLookup(clamped_pixel.x(), clamped_pixel.y());
     }else{
-      return Undistort(ImagePlaneToWorld(clamped_pixel.cast<float>()));
+      LOG_FIRST_N(WARNING, 1) << "Iterative (and expensive) undistortion will be done, "
+                              << "You might want to compute the undistortion lookup table "
+                              << "to gain speed";
+      return Undistort(ImageToDistorted(clamped_pixel.cast<float>()));
     }
   }
 
+  inline Eigen::Vector2f ImageToNormalized(const float x, const float y) const {
+    return ImageToNormalized(Eigen::Vector2f(x,y));
+  }
+
   template <typename Derived>
-  inline Eigen::Vector2f UnprojectFromImageCoordinates(const Eigen::MatrixBase<Derived>& pixel_position) const {
+  inline Eigen::Vector2f ImageToNormalized(const Eigen::MatrixBase<Derived>& pixel_position) const {
     // Manual implementation of bilinearly filtering the lookup.
     if(undistortion_lookup_){
       Eigen::Vector2f clamped_pixel = pixel_position.cwiseMin(Eigen::Vector2f(width_ - 1.001f, height_ - 1.00f)).cwiseMax(0);
       Eigen::Vector2i int_pos = clamped_pixel.cast<int>();
       Eigen::Vector2f factor = clamped_pixel - int_pos.cast<float>();
-      Eigen::Vector2f top_left = undistortionLookup(int_pos.x(), int_pos.y());
-      Eigen::Vector2f top_right = undistortionLookup(int_pos.x() + 1, int_pos.y());
-      Eigen::Vector2f bottom_left = undistortionLookup(int_pos.x(), int_pos.y() + 1);
-      Eigen::Vector2f bottom_right = undistortionLookup(int_pos.x() + 1, int_pos.y() + 1);
+      Eigen::Vector2f top_left = UndistortionLookup(int_pos.x(), int_pos.y());
+      Eigen::Vector2f top_right = UndistortionLookup(int_pos.x() + 1, int_pos.y());
+      Eigen::Vector2f bottom_left = UndistortionLookup(int_pos.x(), int_pos.y() + 1);
+      Eigen::Vector2f bottom_right = UndistortionLookup(int_pos.x() + 1, int_pos.y() + 1);
       return Eigen::Vector2f(
           (1 - factor.y()) *
                   ((1 - factor.x()) * top_left.x() + factor.x() * top_right.x()) +
@@ -171,13 +202,16 @@ template <class Child> class CameraBaseImpl : public CameraBase {
               factor.y() *
                   ((1 - factor.x()) * bottom_left.y() + factor.x() * bottom_right.y()));
     }else{
-      return Undistort(ImagePlaneToWorld(pixel_position));
+      LOG_FIRST_N(WARNING, 1) << "Iterative (and expensive) undistortion will be done, "
+                              << "You might want to compute the undistortion lookup table "
+                              << "to gain speed";
+      return Undistort(ImageToDistorted(pixel_position));
     }
   }
 
-    // This iterative Undistort() function should not be used in
+  // This iterative Undistort() function should not be used in
   // time critical code. An undistortion texture may be preferable,
-  // as used by the UnprojectFromImageCoordinates() methods. Undistort() is only
+  // as used by the ImageToNormalized() methods. Undistort() is only
   // used for calculating this undistortion texture once.
   template <typename Derived1, typename Derived2>
   inline Eigen::Vector2f IterativeUndistort(const Eigen::MatrixBase<Derived1>& distorted_point,
@@ -196,17 +230,18 @@ template <class Child> class CameraBaseImpl : public CameraBase {
       // (Non-squared) residuals.
       Eigen::Vector2f delta_point = distorted_candidate - distorted_point;
 
-      // Accumulate H and b.
-      const Eigen::Matrix2f Jd = child->DistortionDerivative(undistorted);
-      const Eigen::Matrix2f Jd2 = Jd.transpose() * Jd;
-      const Eigen::Vector2f step = (Jd2.inverse() * Jd) * delta_point;
-      undistorted.noalias() -= step;
-      if (step.squaredNorm() < kUndistortionEpsilon) {
+      if (delta_point.squaredNorm() < kUndistortionEpsilon) {
         if (converged) {
           *converged = true;
         }
         break;
       }
+
+      // Accumulate H and b.
+      const Eigen::Matrix2f Jd = child->DistortedDerivativeByNormalized(undistorted);
+      const Eigen::Matrix2f Jd2 = Jd.transpose() * Jd;
+      const Eigen::Vector2f step = (Jd2.inverse() * Jd) * delta_point;
+      undistorted -= step;
     }
 
     return undistorted;
@@ -217,7 +252,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
     return IterativeUndistort(distorted_point, distorted_point, nullptr);
   }
 
-  void InitializeUnprojectionLookup() {
+  void InitializeUndistortionLookup() {
     if(undistortion_lookup_){
       return;
     }else{
@@ -225,7 +260,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
       Eigen::Vector2f* ptr = undistortion_lookup_;
       for (int y = 0; y < height(); ++y) {
         for (int x = 0; x < width(); ++x) {
-          *ptr = Undistort(
+          *ptr = static_cast<const Child*>(this)->Undistort(
               Eigen::Vector2f(f_inv().x() * x + c_inv().x(), f_inv().y() * y + c_inv().y()));
           ++ptr;
         }
@@ -233,7 +268,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
     }
   }
 
-  inline Eigen::Vector2f undistortionLookup(const int x, const int y) const{
+  inline Eigen::Vector2f UndistortionLookup(const int x, const int y) const {
     return undistortion_lookup_[x + width_ * y];
   }
 
@@ -249,7 +284,6 @@ template <class Child> class CameraBaseImpl : public CameraBase {
     // Try different initialization points and take the result with the smallest
     // radius. Since this should be the only acceptable one, also store the second
     // smallest result. Thus we know the radius cutoff should be between the two
-    //
     constexpr int kNumGridSteps = 10;
     constexpr float kGridHalfExtent = 1.5f;
     constexpr float kImproveThreshold = 0.99f;
@@ -292,14 +326,20 @@ template <class Child> class CameraBaseImpl : public CameraBase {
     return best_result;
   }
 
+  // Applies the derivatives of the distorted coordinates
+  // (before using intrinsics to get image or texture coodrinates)
+  // with respect to 3D change of the input point.
   template <typename Derived1, typename Derived2>
-  inline void ProjectionToDistortedDerivative(
+  inline void DistortedDerivativeByWorld(
       const Eigen::MatrixBase<Derived1>& point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const Eigen::Vector2f normalized_point =
         Eigen::Vector2f(point.x() / point.z(), point.y() / point.z());
     if(normalized_point.squaredNorm() < radius_cutoff_squared_){
       const float z_inv = 1.f/point.z();
-      const Eigen::Matrix2f distortion_deriv = static_cast<const Child*>(this)->DistortionDerivative(normalized_point);
+      const Eigen::Matrix2f distortion_deriv = static_cast<const Child*>(this)->DistortedDerivativeByNormalized(normalized_point);
+
+      // Construct the Jacobian of the normalization operation
+      // i.e. (x,y,z) -> (x/z, y/z)
       Eigen::Matrix<float, 2, 3> normalize_deriv;
       normalize_deriv.leftCols<2>() = Eigen::Matrix2f::Identity() * z_inv;
       normalize_deriv.col(2) = -1.f * normalized_point * z_inv;
@@ -309,24 +349,24 @@ template <class Child> class CameraBaseImpl : public CameraBase {
     }
   }
 
-  // Returns the derivatives of the normalized projected coordinates with
+  // Applies the derivatives of the pixel coordinates with
   // respect to the 3D change of the input point.
   template <typename Derived1, typename Derived2>
-  inline void ProjectionToImageCoordinatesDerivative(
+  inline void ImageDerivativeByWorld(
       const Eigen::MatrixBase<Derived1>& point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
-    ProjectionToDistortedDerivative(point, deriv_xy);
+    DistortedDerivativeByWorld(point, deriv_xy);
     deriv_xy = f().asDiagonal() * deriv_xy;
   }
 
   template <typename Derived1, typename Derived2>
-  inline void ProjectionToNormalizedTextureCoordinatesDerivative(
+  inline void TextureDerivativeByWorld(
       const Eigen::MatrixBase<Derived1>& point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
-    ProjectionToDistortedDerivative(point, deriv_xy);
+    DistortedDerivativeByWorld(point, deriv_xy);
     deriv_xy = nf().asDiagonal() * deriv_xy;
   }
 
   template <typename Derived1, typename Derived2>
-  inline void ProjectionToImageCoordinatesDerivativeByIntrinsics(const Eigen::MatrixBase<Derived1>& point,
+  inline void ImageDerivativeByIntrinsics(const Eigen::MatrixBase<Derived1>& point,
                                                                  Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const Child* child = static_cast<const Child*>(this);
     const Eigen::Vector2f normalized_point =
@@ -348,7 +388,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
 
         const int kBlockSize = child->ParameterCount() - 4;
         auto distort_deriv = deriv_xy.template rightCols<kBlockSize>();
-        child->NormalizedDerivativeByIntrinsics(normalized_point, distort_deriv);
+        child->DistortedDerivativeByDistortionParameters(normalized_point, distort_deriv);
         distort_deriv = f().asDiagonal() * distort_deriv;
       }else{
         deriv_xy(0,0) = distorted_point.x();
@@ -360,7 +400,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
 
         const int kBlockSize = child->ParameterCount() - 3;
         auto distort_deriv = deriv_xy.template rightCols<kBlockSize>();
-        child->NormalizedDerivativeByIntrinsics(normalized_point, distort_deriv);
+        child->DistortedDerivativeByDistortionParameters(normalized_point, distort_deriv);
         distort_deriv = f().asDiagonal() * distort_deriv;
       }
     }
@@ -401,14 +441,13 @@ template <class Child> class CameraBaseImpl : public CameraBase {
 
     for (int y = 0; y < height_; ++ y){
       test_points.push_back(Eigen::Vector2f(0, y));
-      test_points.push_back(Eigen::Vector2f(width_, y));
-
+      test_points.push_back(Eigen::Vector2f(width_ -1, y));
     }
 
     for (Eigen::Vector2f test_point: test_points){
       const Eigen::Vector2f nxy = UndistortFromInside(
-        ImagePlaneToWorld(test_point),
-        &converged, &second_best_result, &second_best_available);
+          ImageToDistorted(test_point),
+          &converged, &second_best_result, &second_best_available);
       if (converged) {
         const float r2 = nxy.squaredNorm();
         min_candidate = std::max(r2, min_candidate);
@@ -430,5 +469,4 @@ template <class Child> class CameraBaseImpl : public CameraBase {
   Eigen::Vector2f* undistortion_lookup_;
   float radius_cutoff_squared_;
 };
-
 }  // namespace camera

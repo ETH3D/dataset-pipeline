@@ -1029,7 +1029,7 @@ bool IntrinsicsAndPoseOptimizer::ComputePointIntensityAndJacobians(
                       transformed_point.y(),
                       transformed_point.z());
   const Eigen::Vector2f offset_image_coordinates =
-      min_image_scale_camera.ProjectToImageCoordinates(
+      min_image_scale_camera.NormalizedToImage(
           Eigen::Vector2f(transformed_point_offset.x() / transformed_point_offset.z(),
                           transformed_point_offset.y() / transformed_point_offset.z()));
   // Pre-computations for computing the image scale derivatives.
@@ -1051,13 +1051,13 @@ bool IntrinsicsAndPoseOptimizer::ComputePointIntensityAndJacobians(
   Eigen::Matrix<float, 3, kIntrinsicsParameterCount, Eigen::RowMajor>
       j_project_wrt_intrinsics;
   auto j_project_wrt_intrinsics_xy = j_project_wrt_intrinsics.template topRows<2>();
-  min_image_scale_camera.ProjectionToImageCoordinatesDerivativeByIntrinsics(
+  min_image_scale_camera.ImageDerivativeByIntrinsics(
       transformed_point,
       j_project_wrt_intrinsics_xy);
   // Compute image scale derivatives.
   Eigen::Matrix<float, 2, kIntrinsicsParameterCount, Eigen::RowMajor>
       j_project_offset_wrt_intrinsics;
-  min_image_scale_camera.ProjectionToImageCoordinatesDerivativeByIntrinsics(
+  min_image_scale_camera.ImageDerivativeByIntrinsics(
       transformed_point_offset,
       j_project_offset_wrt_intrinsics);
   for (int i = 0; i < kIntrinsicsParameterCount; ++ i) {
@@ -1088,12 +1088,12 @@ bool IntrinsicsAndPoseOptimizer::ComputePointIntensityAndJacobians(
   // [12 x  6]: d(exp(hat(delta_pose))) / d(delta_pose) at zero
   Eigen::Matrix<float, 3, 3, Eigen::RowMajor> j_project_wrt_p;
   auto j_project_wrt_p_xy = j_project_wrt_p.template topRows<2>();
-  min_image_scale_camera.ProjectionToImageCoordinatesDerivative(
+  min_image_scale_camera.ImageDerivativeByWorld(
       transformed_point, j_project_wrt_p_xy);
   // Compute image scale derivatives.
   Eigen::Matrix<float, 2, 3, Eigen::RowMajor>
       j_project_offset_wrt_p;
-  min_image_scale_camera.ProjectionToImageCoordinatesDerivative(
+  min_image_scale_camera.ImageDerivativeByWorld(
       transformed_point_offset, j_project_offset_wrt_p);
   for (int i = 0; i < 3; ++ i) {
     j_project_wrt_p(2, i) =

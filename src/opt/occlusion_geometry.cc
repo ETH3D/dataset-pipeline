@@ -280,9 +280,9 @@ void OcclusionGeometry::DrawSplatsAtEdgeIfVisible(
     // Simplification: Do not consider this edge.
     return;
   }
-  Eigen::Vector2f pxy1 = camera.ProjectToImageCoordinates(Eigen::Vector2f(
+  Eigen::Vector2f pxy1 = camera.NormalizedToImage(Eigen::Vector2f(
       image_endpoint1.x() / image_endpoint1.z(), image_endpoint1.y() / image_endpoint1.z()));
-  Eigen::Vector2f pxy2 = camera.ProjectToImageCoordinates(Eigen::Vector2f(
+  Eigen::Vector2f pxy2 = camera.NormalizedToImage(Eigen::Vector2f(
       image_endpoint2.x() / image_endpoint2.z(), image_endpoint2.y() / image_endpoint2.z()));
   Eigen::Vector2f dxy = pxy2 - pxy1;
   // Not considering image distortion here.
@@ -315,11 +315,11 @@ void OcclusionGeometry::DrawEdgeSplatIfVisible(
   
   Eigen::Vector3f image_point = image_R_global * point + image_T_global;
   if (image_point.z() > 0) {
-    Eigen::Vector2f pxy = camera.ProjectToImageCoordinates(Eigen::Vector2f(
+    Eigen::Vector2f ixy = camera.NormalizedToImage(Eigen::Vector2f(
         image_point.x() / image_point.z(), image_point.y() / image_point.z()));
-    int ix = pxy.x() + 0.5f;
-    int iy = pxy.y() + 0.5f;
-    if (pxy.x() + 0.5f >= 0 && pxy.y() + 0.5f >= 0 &&
+    int ix = ixy.x() + 0.5f;
+    int iy = ixy.y() + 0.5f;
+    if (ixy.x() + 0.5f >= 0 && ixy.y() + 0.5f >= 0 &&
         ix >= 0 && iy >= 0 &&
         ix < camera.width() && iy < camera.height() &&
         (*output)(iy, ix) + kOcclusionDepthThreshold >= image_point.z()) {
@@ -372,7 +372,7 @@ cv::Mat_<float> OcclusionGeometry::_RenderDepthMapWithSplatsCPU(
     
     Eigen::Vector3f pp = image_R_global * point.getVector3fMap() + image_T_global;
     if (pp.z() > 0.f) {
-      Eigen::Vector2f ixy = image_scale_camera.ProjectToImageCoordinates(Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
+      Eigen::Vector2f ixy = image_scale_camera.NormalizedToImage(Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
       int min_x = std::max(0, ix - splat_radius);

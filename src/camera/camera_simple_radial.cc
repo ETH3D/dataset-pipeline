@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -51,7 +52,7 @@ void SimpleRadialCamera::InitCutoff() {
   // get the radius where the derivative of distorted r wrt r is 0
   // this means that the distorted point begins to go back to the center (unwanted)
   if(k1_ < 0){
-    radius_cutoff_squared_= -1.f/(3 * k1_);
+    radius_cutoff_squared_ = -1.f/(3 * k1_);
   }
 }
 

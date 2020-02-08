@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -60,31 +61,20 @@ class SimpleRadialCamera : public RadialBase<SimpleRadialCamera> {
   inline float DistortionFactor(const float r2) const {
     return 1.0f + r2 * k1_;
   }
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 4 values each are returned for f, cx, cy, k.
+
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameter for deriv_xy. For x and y, 1 value each is written for
+  // k.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
     const float radius_square = normalized_point.squaredNorm();
     deriv_xy(0,0) = normalized_point.x() * radius_square;
     deriv_xy(1,0) = normalized_point.y() * radius_square;
   }
 
-  // Derivation with Matlab:
-  // syms nx ny px py pz
-  // ru2 = nx*nx + ny*ny
-  // factw = 1 + ru2 * k
-  // simplify(diff(nx * factw, nx))
-  // simplify(diff(nx * factw, ny))
-  // simplify(diff(ny * factw, nx))
-  // simplify(diff(ny * factw, ny))
-  // Returns (ddx/dnx, ddx/dny, ddy/dnx, ddy/dny) as in above order,
-  // with dx,dy being the distorted coords and d the partial derivative
-  // operator.
-  // Note: in case of small distortions, you may want to use (1, 0, 0, 1)
-  // as an approximation.
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float nx = normalized_point.x();
     const float ny = normalized_point.y();
     const float nxs = nx * nx;
@@ -98,7 +88,7 @@ class SimpleRadialCamera : public RadialBase<SimpleRadialCamera> {
     return (Eigen::Matrix2f() << ddx_dnx, ddx_dny, ddy_dnx, ddy_dny).finished();
   }
 
-  inline float DistortionDerivative(const float r2) const {
+  inline float DistortedDerivativeByNormalized(const float r2) const {
     return 1.f + 3.f * k1_ * r2;
   }
 
@@ -109,7 +99,6 @@ class SimpleRadialCamera : public RadialBase<SimpleRadialCamera> {
     parameters[3] = k1_;
   }
 
-  // Returns the distortion parameters k and r_cutoff.
   inline float distortion_parameters() const {
     return k1_;
   }

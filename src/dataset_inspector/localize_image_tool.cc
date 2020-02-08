@@ -55,7 +55,7 @@ void LocalizeImageTool::AlignImageWithCorrespondences(const Camera& image_scale_
   for (Correspondence correspondence : correspondences_) {
     points.push_back(correspondence.p.cast<double>());
     
-    Eigen::Vector2f nxy = image_scale_camera.UnprojectFromImageCoordinates(
+    Eigen::Vector2f nxy = image_scale_camera.ImageToNormalized(
         correspondence.ixy);
     opengv::bearingVector_t bearing(nxy.x(), nxy.y(), 1.0);
     bearing_vectors.push_back(bearing.normalized());
@@ -141,7 +141,7 @@ bool LocalizeImageTool::keyPressEvent(QKeyEvent* event) {
     }
     
     opt::Intrinsics* intrinsics = image_widget_->intrinsics_mutable();
-    intrinsics->model(image_widget_->display_image_scale())->InitializeUnprojectionLookup();
+    intrinsics->model(image_widget_->display_image_scale())->InitializeUndistortionLookup();
     
     const camera::CameraBase& image_scale_camera =
         *image_widget_->intrinsics().model(image_widget_->display_image_scale());

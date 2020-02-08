@@ -61,7 +61,7 @@ class PolynomialTangentialCamera : public CameraBaseImpl<PolynomialTangentialCam
     const float xy = normalized_point.x() * normalized_point.y();
     const float y2 = normalized_point.y() * normalized_point.y();
     const float r2 = x2 + y2;
-    const float radial =1 + r2 * (k1 + r2 * k2);
+    const float radial = 1 + r2 * (k1 + r2 * k2);
 
     const Eigen::Vector2f dx_dy(2.f * p1 * xy + p2 * (r2 + 2.f * x2),
                                 2.f * p2 * xy + p1 * (r2 + 2.f * y2));
@@ -69,11 +69,11 @@ class PolynomialTangentialCamera : public CameraBaseImpl<PolynomialTangentialCam
   }
 
 
-  // Returns the derivatives of the image coordinates with respect to the
-  // intrinsics. For x and y, 8 values each are returned for fx, fy, cx, cy,
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameters for deriv_xy. For x and y, 4 values each are written for
   // k1, k2, p1, p2.
   template <typename Derived1, typename Derived2>
-  inline void NormalizedDerivativeByIntrinsics(
+  inline void DistortedDerivativeByDistortionParameters(
       const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
 
     const float nx = normalized_point.x();
@@ -114,7 +114,7 @@ class PolynomialTangentialCamera : public CameraBaseImpl<PolynomialTangentialCam
   // Note: in case of small distortions, you may want to use (1, 0, 0, 1)
   // as an approximation.
   template <typename Derived>
-  inline Eigen::Matrix2f DistortionDerivative(const Eigen::MatrixBase<Derived>& normalized_point) const {
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float k1 = distortion_parameters_.x();
     const float k2 = distortion_parameters_.y();
     const float p1 = distortion_parameters_.z();
@@ -148,7 +148,6 @@ class PolynomialTangentialCamera : public CameraBaseImpl<PolynomialTangentialCam
     parameters[7] = distortion_parameters_.w();
   }
 
-  // Returns the distortion parameters p1, p2, and p3.
   inline const Eigen::Vector4f& distortion_parameters() const {
     return distortion_parameters_;
   }
