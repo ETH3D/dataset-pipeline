@@ -23,9 +23,9 @@ RUN cd opencv \
 
 WORKDIR /dataset-pipeline
 COPY . /dataset-pipeline
-RUN mkdir -p build \
+RUN rm -rf build \
+  && mkdir -p build \
   && cd build \
-  && rm -r * \
   && cmake .. \
   && make -j8 \
   && cd ../../

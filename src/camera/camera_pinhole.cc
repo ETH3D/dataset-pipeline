@@ -34,24 +34,9 @@
 namespace camera {
 PinholeCamera::PinholeCamera(int width, int height, float fx, float fy,
                              float cx, float cy)
-    : CameraBase(width, height, fx, fy, cx, cy, Type::kPinhole) {}
+    : CameraBaseImpl(width, height, fx, fy, cx, cy, Type::kPinhole) {}
 
 PinholeCamera::PinholeCamera(int width, int height, const float* parameters)
-    : CameraBase(width, height, parameters[0], parameters[1], parameters[2],
-                 parameters[3], Type::kPinhole) {}
-
-CameraBase* PinholeCamera::ScaledBy(float factor) const {
-  CHECK_NE(factor, 0.0f);
-  int scaled_width = static_cast<int>(factor * width_);
-  int scaled_height = static_cast<int>(factor * height_);
-  return new PinholeCamera(scaled_width, scaled_height,
-                           factor * fx(), factor * fy(),
-                           factor * (cx() + 0.5f) - 0.5f,
-                           factor * (cy() + 0.5f) - 0.5f);
-}
-
-CameraBase* PinholeCamera::ShiftedBy(float cx_offset, float cy_offset) const {
-  return new PinholeCamera(width_, height_, fx(), fy(), cx() + cx_offset,
-                           cy() + cy_offset);
-}
+    : CameraBaseImpl(width, height, parameters[0], parameters[1], parameters[2],
+                     parameters[3], Type::kPinhole) {}
 }  // namespace camera

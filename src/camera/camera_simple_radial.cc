@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -27,25 +28,32 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
-#pragma once
-
-// Includes all camera models.
-#include "camera/camera_base.h"
-#include "camera_base_impl.h"
-#include "camera/camera_base_impl_fisheye.h"
-#include "camera/camera_base_impl_radial.h"
-#include "camera/camera_thin_prism.h"
-#include "camera/camera_benchmark.h"
-#include "camera/camera_fisheye_fov.h"
-#include "camera/camera_fisheye_polynomial_4.h"
-#include "camera/camera_fisheye_polynomial_tangential.h"
-#include "camera/camera_pinhole.h"
-#include "camera/camera_simple_pinhole.h"
-#include "camera/camera_polynomial.h"
-#include "camera/camera_polynomial_4.h"
-#include "camera/camera_full_opencv.h"
-#include "camera/camera_radial.h"
-#include "camera/camera_radial_fisheye.h"
 #include "camera/camera_simple_radial.h"
-#include "camera/camera_simple_radial_fisheye.h"
-#include "camera/camera_polynomial_tangential.h"
+
+#include <glog/logging.h>
+
+namespace camera {
+SimpleRadialCamera::SimpleRadialCamera(int width, int height, float f,
+                                   float cx, float cy, float k)
+    : RadialBase(width, height, f, f, cx, cy, Type::kSimpleRadial),
+      k1_(k) {
+  InitCutoff();
+}
+
+SimpleRadialCamera::SimpleRadialCamera(int width, int height,
+                                   const float* parameters)
+    : RadialBase(width, height, parameters[0], parameters[0], parameters[1],
+                     parameters[2], Type::kSimpleRadial),
+      k1_(parameters[3]) {
+  InitCutoff();
+}
+
+void SimpleRadialCamera::InitCutoff() {
+  // get the radius where the derivative of distorted r wrt r is 0
+  // this means that the distorted point begins to go back to the center (unwanted)
+  if(k1_ < 0){
+    radius_cutoff_squared_ = -1.f/(3 * k1_);
+  }
+}
+
+}  // namespace camera

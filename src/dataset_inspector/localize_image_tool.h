@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include <Eigen/Core>
+#include <Eigen/StdVector>
 #include "dataset_inspector/gui_image_widget.h"
 
 namespace dataset_inspector {
@@ -49,20 +51,20 @@ class LocalizeImageTool : public Tool {
 
  private:
   struct Correspondence {
-    float px, py, pz;  // 3D point coordinates.
-    float pix, piy;  // 2D coordinates of point in image (for visualization only).
-    float ix, iy;  // 2D observation image coordinates with (0, 0) at the center of the top left pixel.
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Eigen::Vector3f p; // 3D point coordinates.
+    Eigen::Vector2f pi; // 2D coordinates of point in image (for visualization only).
+    Eigen::Vector2f ixy; // 2D observation image coordinates with (0, 0) at the center of the top left pixel.
   };
   
-  std::vector<Correspondence> correspondences_;
+  std::vector<Correspondence, Eigen::aligned_allocator<Correspondence>> correspondences_;
   
   // If true, the next action is to select a 3D point.
   // If false, the next action is to define a 2D observation.
   bool select_point_;
   
   std::size_t selected_point_index_;
-  float selected_point_image_x_;
-  float selected_point_image_y_;
+  Eigen::Vector2f selected_point_image;
 };
 
 }  // namespace dataset_inspector

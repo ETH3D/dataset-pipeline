@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -29,24 +30,63 @@
 
 #pragma once
 
-#include <math.h>
-
 #include <Eigen/Core>
 
 #include "camera/camera_base.h"
 #include "camera/camera_base_impl.h"
-#include "camera/camera_base_impl_fisheye.h"
-#include "camera/camera_polynomial_tangential.h"
 
 namespace camera {
 
-class FisheyePolynomialTangentialCamera : public FisheyeBase<PolynomialTangentialCamera, FisheyePolynomialTangentialCamera> {
+// Models pre-rectified simple pinhole cameras.
+class SimplePinholeCamera : public CameraBaseImpl<SimplePinholeCamera> {
  public:
-  FisheyePolynomialTangentialCamera(int width, int height, float fx, float fy,
-                                    float cx, float cy, float k1, float k2,
-                                    float p1, float p2);
+  SimplePinholeCamera(int width, int height, float f, float cx, float cy);
 
-  FisheyePolynomialTangentialCamera(int width, int height, const float* parameters);
+  SimplePinholeCamera(int width, int height, const float* parameters);
+
+  static constexpr int ParameterCount() {
+    return 3;
+  }
+
+  static constexpr bool UniqueFocalLength() {
+    return true;
+  }
+
+  template <typename Derived>
+  inline Eigen::Vector2f Distort(const Eigen::MatrixBase<Derived>& normalized_point) const {
+    return normalized_point;
+  }
+
+  template <typename Derived>
+  inline Eigen::Vector2f Undistort(const Eigen::MatrixBase<Derived>& normalized_point) const {
+    return normalized_point;
+  }
+
+  template<typename T>
+  inline Eigen::Vector2f ImageToNormalized(const T x, const T y) const {
+    return ImageToDistorted(Eigen::Vector2f(x,y));
+  }
+
+  template <typename Derived>
+  inline Eigen::Vector2f ImageToNormalized(const Eigen::MatrixBase<Derived>& pixel_position) const {
+    return ImageToDistorted(pixel_position);
+  }
+
+  // Since no distortion is applied, nothing has to be done
+  template <typename Derived1, typename Derived2>
+  inline void DistortedDerivativeByDistortionParameters(
+      const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {}
+
+  template <typename Derived>
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& /*normalized_point*/) const {
+    return (Eigen::Matrix2f() << 1, 0, 0, 1).finished();
+  }
+
+  inline void GetParameters(float* parameters) const {
+    parameters[0] = fx();
+    parameters[1] = cx();
+    parameters[2] = cy();
+  }
 };
 
 }  // namespace camera

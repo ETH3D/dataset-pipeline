@@ -104,7 +104,7 @@ class RendererProgram<camera::FisheyePolynomial4Camera> : public RendererProgram
   GLint u_k2_location_;
   GLint u_k3_location_;
   GLint u_k4_location_;
-  GLint radius_cutoff_location_;
+  GLint radius_cutoff_squared_location_;
 };
 
 template <>
@@ -120,6 +120,7 @@ class RendererProgram<camera::FisheyePolynomialTangentialCamera> : public Render
   GLint u_k2_location_;
   GLint u_p1_location_;
   GLint u_p2_location_;
+  GLint radius_cutoff_squared_location_;
 };
 
 template <>
@@ -131,9 +132,64 @@ class RendererProgram<camera::PolynomialCamera> : public RendererProgramBase {
   void SetUniformValues(const camera::PolynomialCamera& camera) const;
 
  private:
-  GLint u_p0_location_;
-  GLint u_p1_location_;
-  GLint u_p2_location_;
+  GLint u_k1_location_;
+  GLint u_k2_location_;
+  GLint u_k3_location_;
+  GLint radius_cutoff_squared_location_;
+};
+
+template <>
+class RendererProgram<camera::RadialCamera> : public RendererProgramBase {
+ public:
+  const GLchar* GetShaderUniformDefinitions() const override;
+  const GLchar* GetShaderDistortionCode() const override;
+  void GetUniformLocations(const ShaderProgramOpenGL& shader_program) override;
+  void SetUniformValues(const camera::RadialCamera& camera) const;
+
+ private:
+  GLint u_k1_location_;
+  GLint u_k2_location_;
+  GLint radius_cutoff_squared_location_;
+};
+
+template <>
+class RendererProgram<camera::SimpleRadialCamera> : public RendererProgramBase {
+ public:
+  const GLchar* GetShaderUniformDefinitions() const override;
+  const GLchar* GetShaderDistortionCode() const override;
+  void GetUniformLocations(const ShaderProgramOpenGL& shader_program) override;
+  void SetUniformValues(const camera::SimpleRadialCamera& camera) const;
+
+ private:
+  GLint u_k_location_;
+  GLint radius_cutoff_squared_location_;
+};
+
+template <>
+class RendererProgram<camera::RadialFisheyeCamera> : public RendererProgramBase {
+ public:
+  const GLchar* GetShaderUniformDefinitions() const override;
+  const GLchar* GetShaderDistortionCode() const override;
+  void GetUniformLocations(const ShaderProgramOpenGL& shader_program) override;
+  void SetUniformValues(const camera::RadialFisheyeCamera& camera) const;
+
+ private:
+  GLint u_k1_location_;
+  GLint u_k2_location_;
+  GLint radius_cutoff_squared_location_;
+};
+
+template <>
+class RendererProgram<camera::SimpleRadialFisheyeCamera> : public RendererProgramBase {
+ public:
+  const GLchar* GetShaderUniformDefinitions() const override;
+  const GLchar* GetShaderDistortionCode() const override;
+  void GetUniformLocations(const ShaderProgramOpenGL& shader_program) override;
+  void SetUniformValues(const camera::SimpleRadialFisheyeCamera& camera) const;
+
+ private:
+  GLint u_k_location_;
+  GLint radius_cutoff_squared_location_;
 };
 
 template <>
@@ -153,12 +209,41 @@ class RendererProgram<camera::PolynomialTangentialCamera> : public RendererProgr
 };
 
 template <>
+class RendererProgram<camera::FullOpenCVCamera> : public RendererProgramBase {
+ public:
+  const GLchar* GetShaderUniformDefinitions() const override;
+  const GLchar* GetShaderDistortionCode() const override;
+  void GetUniformLocations(const ShaderProgramOpenGL& shader_program) override;
+  void SetUniformValues(const camera::FullOpenCVCamera& camera) const;
+
+ private:
+  GLint u_k1_location_;
+  GLint u_k2_location_;
+  GLint u_p1_location_;
+  GLint u_p2_location_;
+  GLint u_k3_location_;
+  GLint u_k4_location_;
+  GLint u_k5_location_;
+  GLint u_k6_location_;
+  GLint radius_cutoff_squared_location_;
+};
+
+template <>
 class RendererProgram<camera::PinholeCamera> : public RendererProgramBase {
  public:
   const GLchar* GetShaderUniformDefinitions() const override;
   const GLchar* GetShaderDistortionCode() const override;
   void GetUniformLocations(const ShaderProgramOpenGL& /*shader_program*/) override;
   void SetUniformValues(const camera::PinholeCamera& /*camera*/) const;
+};
+
+template <>
+class RendererProgram<camera::SimplePinholeCamera> : public RendererProgramBase {
+ public:
+  const GLchar* GetShaderUniformDefinitions() const override;
+  const GLchar* GetShaderDistortionCode() const override;
+  void GetUniformLocations(const ShaderProgramOpenGL& /*shader_program*/) override;
+  void SetUniformValues(const camera::SimplePinholeCamera& /*camera*/) const;
 };
 
 template <>
@@ -178,7 +263,7 @@ class RendererProgram<camera::BenchmarkCamera> : public RendererProgramBase {
   GLint u_k4_location_;
   GLint u_sx1_location_;
   GLint u_sy1_location_;
-  GLint radius_cutoff_location_;
+  GLint radius_cutoff_squared_location_;
 };
 
 

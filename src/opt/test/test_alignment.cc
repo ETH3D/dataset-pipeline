@@ -277,7 +277,7 @@ void Test4FrameAlignment(
           if (depth > 0 &&
               unit_distribution(generator) < pixel_selection_probability) {
             // Add this pixel to the point cloud.
-            Eigen::Vector2f nxy = camera.UnprojectFromImageCoordinates(x, y);
+            Eigen::Vector2f nxy = camera.ImageToNormalized(x, y);
             Eigen::Vector3f camera_point =
                 Eigen::Vector3f(depth * nxy.x(), depth * nxy.y(), depth);
             Eigen::Vector3f global_point =
@@ -316,7 +316,7 @@ void Test4FrameAlignment(
           if (camera_point.z() <= 0.f) {
             continue;
           }
-          Eigen::Vector2f pixel_point = camera.ProjectToImageCoordinates(
+          Eigen::Vector2f pixel_point = camera.NormalizedToImage(
               Eigen::Vector2f(camera_point.x() / camera_point.z(),
                               camera_point.y() / camera_point.z()));
           if (pixel_point.x() >= 0 &&
@@ -558,7 +558,7 @@ void Test4FrameAlignment(
         for (int x = 0; x < camera.width(); ++ x) {
           float depth = depth_image[x + y * camera.width()];
           if (depth > 0) {
-            Eigen::Vector2f nxy = camera.UnprojectFromImageCoordinates(x, y);
+            Eigen::Vector2f nxy = camera.ImageToNormalized(x, y);
             Eigen::Vector3f camera_point =
                 Eigen::Vector3f(depth * nxy.x(), depth * nxy.y(), depth);
             Eigen::Vector3f global_point =
@@ -568,7 +568,7 @@ void Test4FrameAlignment(
             if (result_point.z() <= 0) {
               continue;
             }
-            Eigen::Vector2f result_pixel = result_camera->ProjectToImageCoordinates(
+            Eigen::Vector2f result_pixel = result_camera->NormalizedToImage(
                 Eigen::Vector2f(result_point.x() / result_point.z(),
                                 result_point.y() / result_point.z()));
             float dx = result_pixel.x() - x;

@@ -888,7 +888,7 @@ void MainWindow::TransferLabels(
     
     Eigen::Vector3f source_point = source_R_global * point.getVector3fMap() + source_T_global;
     if (source_point.z() > 0) {
-      Eigen::Vector2f source_pxy = source_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+      Eigen::Vector2f source_pxy = source_camera.NormalizedToImage(Eigen::Vector2f(
           source_point.x() / source_point.z(), source_point.y() / source_point.z()));
       int source_ix = source_pxy.x() + 0.5f;
       int source_iy = source_pxy.y() + 0.5f;
@@ -910,7 +910,7 @@ void MainWindow::TransferLabels(
         // also visible in the target image.
         Eigen::Vector3f target_point = target_R_global * point.getVector3fMap() + target_T_global;
         if (target_point.z() > 0) {
-          Eigen::Vector2f target_pxy = target_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+          Eigen::Vector2f target_pxy = target_camera.NormalizedToImage(Eigen::Vector2f(
               target_point.x() / target_point.z(), target_point.y() / target_point.z()));
           int target_ix = target_pxy.x() + 0.5f;
           int target_iy = target_pxy.y() + 0.5f;

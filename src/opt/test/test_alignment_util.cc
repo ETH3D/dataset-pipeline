@@ -166,7 +166,7 @@ bool ProcessOnePair(const ImagePairInfo& info,
       }
       
       // Unproject point.
-      Eigen::Vector2f nxy = camera->UnprojectFromImageCoordinates(x, y);
+      Eigen::Vector2f nxy = camera->ImageToNormalized(x, y);
       Eigen::Vector3f p = Eigen::Vector3f(depth * nxy.x(), depth * nxy.y(), depth);
       
       // Assuming identity pose.

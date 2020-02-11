@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zürich, Thomas Schöps
+// Copyright 2020 ENSTA Paris, Clément Pinard
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -29,60 +30,83 @@
 
 #pragma once
 
-#include <Eigen/Core>
+#include <math.h>
 
+#include <Eigen/Core>
+#include <glog/logging.h>
 #include "camera/camera_base.h"
 #include "camera/camera_base_impl.h"
+#include "camera/camera_base_impl_radial.h"
 
 namespace camera {
 
-// Models pre-rectified pinhole cameras.
-class PinholeCamera : public CameraBaseImpl<PinholeCamera> {
+// Models pinhole cameras with a polynomial distortion model.
+class SimpleRadialCamera : public RadialBase<SimpleRadialCamera> {
  public:
-  PinholeCamera(int width, int height, float fx, float fy, float cx, float cy);
+  SimpleRadialCamera(int width, int height, float f,
+                     float cx, float cy, float k);
 
-  PinholeCamera(int width, int height, const float* parameters);
+  SimpleRadialCamera(int width, int height, const float* parameters);
 
   static constexpr int ParameterCount() {
-    return 4;
+    return 3 + 1;
   }
 
-  template <typename Derived>
-  inline Eigen::Vector2f Distort(const Eigen::MatrixBase<Derived>& normalized_point) const {
-    return normalized_point;
+  static constexpr bool UniqueFocalLength() {
+    return true;
   }
 
-  template<typename T>
-  inline Eigen::Vector2f ImageToNormalized(const T x, const T y) const {
-    return ImageToDistorted(Eigen::Vector2f(x,y));
+  void InitCutoff();
+
+  inline float DistortionFactor(const float r2) const {
+    return 1.0f + r2 * k1_;
   }
 
-  template <typename Derived>
-  inline Eigen::Vector2f ImageToNormalized(const Eigen::MatrixBase<Derived>& pixel_position) const {
-    return ImageToDistorted(pixel_position);
-  }
-
-  template <typename Derived>
-  inline Eigen::Vector2f Undistort(const Eigen::MatrixBase<Derived>& normalized_point) const {
-    return normalized_point;
-  }
-
-  // Since no distortion is applied, nothing has to be done
+  // Applies the derivatives of the distorted coordinates with respect to the
+  // distortion parameter for deriv_xy. For x and y, 1 value each is written for
+  // k.
   template <typename Derived1, typename Derived2>
   inline void DistortedDerivativeByDistortionParameters(
-      const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {}
+      const Eigen::MatrixBase<Derived1>& normalized_point, Eigen::MatrixBase<Derived2>& deriv_xy) const {
+    const float radius_square = normalized_point.squaredNorm();
+    deriv_xy(0,0) = normalized_point.x() * radius_square;
+    deriv_xy(1,0) = normalized_point.y() * radius_square;
+  }
 
   template <typename Derived>
-  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& /*normalized_point*/) const {
-    return (Eigen::Matrix2f() << 1, 0, 0, 1).finished();
+  inline Eigen::Matrix2f DistortedDerivativeByNormalized(const Eigen::MatrixBase<Derived>& normalized_point) const {
+    const float nx = normalized_point.x();
+    const float ny = normalized_point.y();
+    const float nxs = nx * nx;
+    const float nys = ny * ny;
+    const float ru2 = nxs + nys;
+    const float ddx_dnx = k1_ * (ru2 + 2 * nxs) + 1;
+    const float ddx_dny = 2 * nx * ny * k1_;
+    const float ddy_dnx = ddx_dny;
+    const float ddy_dny = k1_ * (ru2 + 2 * nys) + 1;
+
+    return (Eigen::Matrix2f() << ddx_dnx, ddx_dny, ddy_dnx, ddy_dny).finished();
+  }
+
+  inline float DistortedDerivativeByNormalized(const float r2) const {
+    return 1.f + 3.f * k1_ * r2;
   }
 
   inline void GetParameters(float* parameters) const {
     parameters[0] = fx();
-    parameters[1] = fy();
-    parameters[2] = cx();
-    parameters[3] = cy();
+    parameters[1] = cx();
+    parameters[2] = cy();
+    parameters[3] = k1_;
   }
+
+  inline float distortion_parameters() const {
+    return k1_;
+  }
+
+ private:
+
+  // The distortion parameter k
+  float k1_;
 };
 
 }  // namespace camera
