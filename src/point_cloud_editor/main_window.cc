@@ -44,6 +44,7 @@
 #include <QSlider>
 #include <QGridLayout>
 #include <QLineEdit>
+#include <QMimeData>
 
 #include "geometry/local_statistical_outlier_removal.h"
 #include "io/meshlab_project.h"

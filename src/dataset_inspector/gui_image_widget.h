@@ -30,6 +30,8 @@
 #pragma once
 
 #include <QWidget>
+#include <Eigen/Core>
+#include <Eigen/StdVector>
 
 #include "dataset_inspector/gui_main_window.h"
 #include "opt/image.h"
@@ -70,30 +72,30 @@ class Tool {
 };
 
 struct DepthPoint {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline DepthPoint(float image_x, float image_y, float depth)
-      : image_x(image_x), image_y(image_y), depth(depth) {}
+      : image_p(image_x, image_y), depth(depth) {}
   
-  float image_x;  // 0 is at the center of the top left pixel.
-  float image_y;  // 0 is at the center of the top left pixel.
+  Eigen::Vector2f image_p;  // 0 is at the center of the top left pixel.
   float depth;
 };
 
 struct CostPoint {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline CostPoint(float image_x, float image_y, float fixed_cost, float variable_cost)
-      : image_x(image_x), image_y(image_y), fixed_cost(fixed_cost), variable_cost(variable_cost) {}
+      : image_p(image_x, image_y), fixed_cost(fixed_cost), variable_cost(variable_cost) {}
   
-  float image_x;  // 0 is at the center of the top left pixel.
-  float image_y;  // 0 is at the center of the top left pixel.
+  Eigen::Vector2f image_p;  // 0 is at the center of the top left pixel.
   float fixed_cost;
   float variable_cost;
 };
 
 struct ScanPoint {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline ScanPoint(float image_x, float image_y, std::size_t point_index, uint8_t r, uint8_t g, uint8_t b)
-      : image_x(image_x), image_y(image_y), point_index(point_index), r(r), g(g), b(b) {}
+      : image_p(image_x, image_y), point_index(point_index), r(r), g(g), b(b) {}
   
-  float image_x;  // 0 is at the center of the top left pixel.
-  float image_y;  // 0 is at the center of the top left pixel.
+  Eigen::Vector2f image_p;  // 0 is at the center of the top left pixel.
   std::size_t point_index;  // Index in ImageWidget::colored_point_cloud_.
   uint8_t r;
   uint8_t g;
@@ -130,7 +132,7 @@ class ImageWidget : public QWidget
   inline const opt::Intrinsics& intrinsics() const { return *intrinsics_; }
   inline opt::Intrinsics* intrinsics_mutable() { return intrinsics_; }
   inline opt::Image* image_mutable() { return image_; }
-  inline const std::vector<ScanPoint>& scan_points() const { return scan_points_; }
+  inline const std::vector<ScanPoint,Eigen::aligned_allocator<ScanPoint> >& scan_points() const { return scan_points_; }
   inline const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& colored_point_cloud() const { return colored_point_cloud_; }
   
  protected:
@@ -203,14 +205,14 @@ class ImageWidget : public QWidget
   // Cached scan color data.
   int scan_color_image_id_;
   int scan_color_image_scale_;
-  std::vector<ScanPoint> scan_points_;
+  std::vector<ScanPoint,Eigen::aligned_allocator<ScanPoint> > scan_points_;
   
   // Cached depth data.
   int depth_points_image_id_;
   int depth_points_image_scale_;
   float min_depth_;
   float max_depth_;
-  std::vector<DepthPoint> depth_points_;
+  std::vector<DepthPoint,Eigen::aligned_allocator<DepthPoint> > depth_points_;
   
   // Cached occlusion depth map data.
   int occlusion_map_image_id_;
@@ -233,7 +235,7 @@ class ImageWidget : public QWidget
   float max_cost_fixed_;
   float min_cost_variable_;
   float max_cost_variable_;
-  std::vector<CostPoint> cost_points_;
+  std::vector<CostPoint,Eigen::aligned_allocator<CostPoint> > cost_points_;
   
   // Display settings.
   int image_scale_;

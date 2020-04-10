@@ -67,18 +67,18 @@ TEST(Problem, DeterminePointNeighbors) {
       std::swap(neighbor_indices[2 * i], neighbor_indices[2 * i + 1]);
     }
   }
-  EXPECT_EQ(2, neighbor_indices[2 * 0 + 0]);
-  EXPECT_EQ(4, neighbor_indices[2 * 0 + 1]);
-  EXPECT_EQ(3, neighbor_indices[2 * 1 + 0]);
-  EXPECT_EQ(5, neighbor_indices[2 * 1 + 1]);
-  EXPECT_EQ(0, neighbor_indices[2 * 2 + 0]);
-  EXPECT_EQ(4, neighbor_indices[2 * 2 + 1]);
-  EXPECT_EQ(1, neighbor_indices[2 * 3 + 0]);
-  EXPECT_EQ(5, neighbor_indices[2 * 3 + 1]);
-  EXPECT_EQ(0, neighbor_indices[2 * 4 + 0]);
-  EXPECT_EQ(2, neighbor_indices[2 * 4 + 1]);
-  EXPECT_EQ(1, neighbor_indices[2 * 5 + 0]);
-  EXPECT_EQ(3, neighbor_indices[2 * 5 + 1]);
+  EXPECT_EQ((size_t) 2, neighbor_indices[2 * 0 + 0]);
+  EXPECT_EQ((size_t) 4, neighbor_indices[2 * 0 + 1]);
+  EXPECT_EQ((size_t) 3, neighbor_indices[2 * 1 + 0]);
+  EXPECT_EQ((size_t) 5, neighbor_indices[2 * 1 + 1]);
+  EXPECT_EQ((size_t) 0, neighbor_indices[2 * 2 + 0]);
+  EXPECT_EQ((size_t) 4, neighbor_indices[2 * 2 + 1]);
+  EXPECT_EQ((size_t) 1, neighbor_indices[2 * 3 + 0]);
+  EXPECT_EQ((size_t) 5, neighbor_indices[2 * 3 + 1]);
+  EXPECT_EQ((size_t) 0, neighbor_indices[2 * 4 + 0]);
+  EXPECT_EQ((size_t) 2, neighbor_indices[2 * 4 + 1]);
+  EXPECT_EQ((size_t) 1, neighbor_indices[2 * 5 + 0]);
+  EXPECT_EQ((size_t) 3, neighbor_indices[2 * 5 + 1]);
   
   // Run function (without limit_neighbors_to_same_scan_index).
   problem.DeterminePointNeighbors(
@@ -95,16 +95,16 @@ TEST(Problem, DeterminePointNeighbors) {
       std::swap(neighbor_indices[2 * i], neighbor_indices[2 * i + 1]);
     }
   }
-  EXPECT_EQ(1, neighbor_indices[2 * 0 + 0]);
-  EXPECT_EQ(2, neighbor_indices[2 * 0 + 1]);
-  EXPECT_EQ(0, neighbor_indices[2 * 1 + 0]);
-  EXPECT_EQ(2, neighbor_indices[2 * 1 + 1]);
-  EXPECT_EQ(1, neighbor_indices[2 * 2 + 0]);
-  EXPECT_EQ(3, neighbor_indices[2 * 2 + 1]);
-  EXPECT_EQ(2, neighbor_indices[2 * 3 + 0]);
-  EXPECT_EQ(4, neighbor_indices[2 * 3 + 1]);
-  EXPECT_EQ(3, neighbor_indices[2 * 4 + 0]);
-  EXPECT_EQ(5, neighbor_indices[2 * 4 + 1]);
-  EXPECT_EQ(3, neighbor_indices[2 * 5 + 0]);
-  EXPECT_EQ(4, neighbor_indices[2 * 5 + 1]);
+  EXPECT_EQ((size_t) 1, neighbor_indices[2 * 0 + 0]);
+  EXPECT_EQ((size_t) 2, neighbor_indices[2 * 0 + 1]);
+  EXPECT_EQ((size_t) 0, neighbor_indices[2 * 1 + 0]);
+  EXPECT_EQ((size_t) 2, neighbor_indices[2 * 1 + 1]);
+  EXPECT_EQ((size_t) 1, neighbor_indices[2 * 2 + 0]);
+  EXPECT_EQ((size_t) 3, neighbor_indices[2 * 2 + 1]);
+  EXPECT_EQ((size_t) 2, neighbor_indices[2 * 3 + 0]);
+  EXPECT_EQ((size_t) 4, neighbor_indices[2 * 3 + 1]);
+  EXPECT_EQ((size_t) 3, neighbor_indices[2 * 4 + 0]);
+  EXPECT_EQ((size_t) 5, neighbor_indices[2 * 4 + 1]);
+  EXPECT_EQ((size_t) 3, neighbor_indices[2 * 5 + 0]);
+  EXPECT_EQ((size_t) 4, neighbor_indices[2 * 5 + 1]);
 }

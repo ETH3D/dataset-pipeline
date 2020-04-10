@@ -360,7 +360,7 @@ void ImageWidget::paintEvent(QPaintEvent* event) {
       const ScanPoint& scan_point = scan_points_[i];
       painter.setPen(qRgb(scan_point.r, scan_point.g, scan_point.b));
       painter.drawPoint(
-          QPointF(0.5f + scan_point.image_x, 0.5f + scan_point.image_y));
+          QPointF(0.5f + scan_point.image_p.x(), 0.5f + scan_point.image_p.y()));
     }
   } else if (mode_ == Mode::kOptimizationPoints) {
     painter.setPen(Qt::NoPen);
@@ -370,7 +370,7 @@ void ImageWidget::paintEvent(QPaintEvent* event) {
       const float radius = 2;
       painter.setBrush(QBrush(qRgb(255 * relative_depth, 255 * (1 - relative_depth), 0)));
       painter.drawEllipse(
-          QPointF(0.5f + depth_point.image_x, 0.5f + depth_point.image_y),
+          QPointF(0.5f + depth_point.image_p.x(), 0.5f + depth_point.image_p.y()),
           radius / view_scale_, radius / view_scale_);
     }
   } else if (mode_ == Mode::kCostFixed ||
@@ -402,7 +402,7 @@ void ImageWidget::paintEvent(QPaintEvent* event) {
       const float radius = 2;
       painter.setBrush(QBrush(qRgb(255 * relative_cost, 255 * (1 - relative_cost), 0)));
       painter.drawEllipse(
-          QPointF(0.5f + cost_point.image_x, 0.5f + cost_point.image_y),
+          QPointF(0.5f + cost_point.image_p.x(), 0.5f + cost_point.image_p.y()),
           radius / view_scale_, radius / view_scale_);
     }
   }
@@ -530,7 +530,7 @@ void ImageWidget::UpdateScanPoints(
     const pcl::PointXYZRGB& point = colored_point_cloud_->at(i);
     Eigen::Vector3f image_point = image_R_global * point.getVector3fMap() + image_T_global;
     if (image_point.z() > 0) {
-      Eigen::Vector2f pxy = image_scale_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+      Eigen::Vector2f pxy = image_scale_camera.NormalizedToImage(Eigen::Vector2f(
           image_point.x() / image_point.z(), image_point.y() / image_point.z()));
       int ix = pxy.x() + 0.5f;
       int iy = pxy.y() + 0.5f;
@@ -608,7 +608,7 @@ void ImageWidget::UpdateDepthMap(
     const pcl::PointXYZRGB& point = colored_point_cloud_->at(i);
     Eigen::Vector3f image_point = image_R_global * point.getVector3fMap() + image_T_global;
     if (image_point.z() > 0) {
-      Eigen::Vector2f pxy = image_scale_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+      Eigen::Vector2f pxy = image_scale_camera.NormalizedToImage(Eigen::Vector2f(
           image_point.x() / image_point.z(), image_point.y() / image_point.z()));
       int ix = pxy.x() + 0.5f;
       int iy = pxy.y() + 0.5f;
@@ -630,7 +630,7 @@ void ImageWidget::UpdateDepthMap(
     uint8_t* out_ptr = result.scanLine(y);
     for (int x = 0; x < image_scale_camera.width(); ++ x) {
       float depth = temp_depth_map(y, x);
-      if (isinf(depth)) {
+      if (std::isinf(depth)) {
         // Pixel was not observed.
         *out_ptr = 0;
         ++ out_ptr;

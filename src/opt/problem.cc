@@ -33,6 +33,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <pcl/io/ply_io.h>
 #include <pcl/search/kdtree.h>
+#include <random>
 
 #include "base/util.h"
 #include "camera/camera_models.h"

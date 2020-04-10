@@ -270,7 +270,7 @@ void VisibilityEstimator::_AppendObservationsForImage(
     Eigen::Vector3f pp = image_R_global * point.getVector3fMap() + image_T_global;
     if (pp.z() > 0.f) {
       Eigen::Vector2f ixy =
-          image_scale_camera.ProjectToImageCoordinates(
+          image_scale_camera.NormalizedToImage(
               Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
@@ -308,7 +308,7 @@ void VisibilityEstimator::_AppendObservationsForImageNoScale(
     Eigen::Vector3f pp = image_R_global * point.getVector3fMap() + image_T_global;
     if (pp.z() > 0.f) {
       Eigen::Vector2f ixy =
-          image_scale_camera.ProjectToImageCoordinates(
+          image_scale_camera.NormalizedToImage(
               Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
@@ -379,7 +379,7 @@ void VisibilityEstimator::_AppendObservationsForIndexedPointsVisibleInImage(
     Eigen::Vector3f pp = image_R_global * point.getVector3fMap() + image_T_global;
     if (pp.z() > 0.f) {
       Eigen::Vector2f ixy =
-          image_scale_camera.ProjectToImageCoordinates(
+          image_scale_camera.NormalizedToImage(
               Eigen::Vector2f(pp.x() / pp.z(), pp.y() / pp.z()));
       int ix = ixy.x() + 0.5f;
       int iy = ixy.y() + 0.5f;
@@ -420,7 +420,7 @@ void VisibilityEstimator::CreateObservationIfScaleFits(
   // be better to use a surface normal estimate to find a tangential direction.
   Eigen::Vector3f pp_radius = pp + Eigen::Vector3f(point_radius, 0, 0);
   Eigen::Vector2f ixy_radius =
-      image_scale_camera.ProjectToImageCoordinates(
+      image_scale_camera.NormalizedToImage(
           Eigen::Vector2f(pp_radius.x() / pp_radius.z(),
                           pp_radius.y() / pp_radius.z()));
   Eigen::Vector2f dxy = ixy_radius - ixy;

@@ -44,7 +44,7 @@ LassoSelectionTool::LassoSelectionTool(RenderWidget* render_widget)
 
 bool LassoSelectionTool::mousePressEvent(QMouseEvent* event) {
   if (event->button() == Qt::RightButton) {
-    points_.push_back(event->posF());
+    points_.push_back(event->localPos());
     return true;
   }
   return false;
@@ -168,7 +168,7 @@ bool LassoSelectionTool::applySelection(Qt::KeyboardModifiers modifiers) {
       const Eigen::Vector3f cloud_point = cloud.at(point_index).getVector3fMap();
       Eigen::Vector3f camera_point = camera_R_object * cloud_point + camera_T_object;
       if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
-        Eigen::Vector2f pxy = render_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+        Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
             camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));
         float pixel_x = pxy.x() + 0.5f;
         float pixel_y = pxy.y() + 0.5f;
@@ -181,8 +181,8 @@ bool LassoSelectionTool::applySelection(Qt::KeyboardModifiers modifiers) {
             int int_pixel_y = std::max<int>(0, std::min<int>(render_camera.height() - 1, pixel_y));
             const float rendered_depth = depth_image(int_pixel_y, int_pixel_x);
             constexpr float kDepthToleranceFactor = 0.99f;
-            if (!isinf(rendered_depth) &&
-                !isnan(rendered_depth) &&
+            if (!std::isinf(rendered_depth) &&
+                !std::isnan(rendered_depth) &&
                 rendered_depth < kDepthToleranceFactor * camera_point.z()) {
               // The rendered depth is significantly before the point depth,
               // so do not select the point.

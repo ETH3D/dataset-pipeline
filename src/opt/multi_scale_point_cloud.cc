@@ -173,7 +173,7 @@ void ComputeMinMaxPointRadius(const pcl::PointCloud<pcl::PointXYZ>::Ptr& points,
                               (observation_x_at_min_image_scale - kPixelDistance),
                           observation_y_at_min_image_scale);
       Eigen::Vector2f offset_nxy =
-          min_image_scale_camera.UnprojectFromImageCoordinates(offset_observation);
+          min_image_scale_camera.ImageToNormalized(offset_observation);
       // NOTE: This unprojects the point to the same depth as the original point.
       // This is valid for fronto-parallel surfaces only. As a better
       // alternative, one could take an estimated surface normal into account.
@@ -250,7 +250,7 @@ void CreateMultiScalePointCloud(
     const Intrinsics& intrinsics = intrinsics_list[image.intrinsics_id];
     
     // Initialize undistortion lookups.
-    intrinsics.model(0)->InitializeUnprojectionLookup();
+    intrinsics.model(0)->InitializeUndistortionLookup();
     
     const camera::CameraBase& min_image_scale_camera = *intrinsics.model(0);
     CHOOSE_CAMERA_TEMPLATE(

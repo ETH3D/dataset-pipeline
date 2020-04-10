@@ -84,7 +84,7 @@ void BeyondPlaneSelectionTool::PerformSelection(
     if (limit_selection_to_visible_) {
       Eigen::Vector3f camera_point = camera_R_object * point + camera_T_object;
       if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
-        Eigen::Vector2f pxy = render_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+        Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
             camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));
         float pixel_x = pxy.x() + 0.5f;
         float pixel_y = pxy.y() + 0.5f;
@@ -127,7 +127,7 @@ bool BeyondPlaneSelectionTool::mousePressEvent(QMouseEvent* event) {
     for (std::size_t point_index = 0, size = cloud.size(); point_index < size; ++ point_index) {
       Eigen::Vector3f camera_point = camera_R_object * cloud.at(point_index).getVector3fMap() + camera_T_object;
       if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
-        Eigen::Vector2f pxy = render_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+        Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
             camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));
         QPointF pixel_pos(pxy.x() + 0.5f, pxy.y() + 0.5f);
         
@@ -140,7 +140,7 @@ bool BeyondPlaneSelectionTool::mousePressEvent(QMouseEvent* event) {
       }
     }
     
-    if (!isinf(best_distance)) {
+    if (!std::isinf(best_distance)) {
       points_.push_back(cloud.at(best_point_index).getVector3fMap());
       if (points_.size() == 3) {
         PerformSelection(points_);
@@ -204,7 +204,7 @@ void BeyondPlaneSelectionTool::paintEvent(QPainter* qpainter) {
     // Project to display.
     Eigen::Vector3f camera_point = camera_R_object * point + camera_T_object;
     if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
-      Eigen::Vector2f pxy = render_camera.ProjectToImageCoordinates(Eigen::Vector2f(
+      Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
           camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));
       float pixel_x = pxy.x() + 0.5f;
       float pixel_y = pxy.y() + 0.5f;

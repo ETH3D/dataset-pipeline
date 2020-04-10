@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
     float buffer[9];
     for (int y = 1; y < image_height - 1; ++ y) {
       for (int x = 1; x < image_width - 1; ++ x) {
-        if (!isinf(depth_image(y, x))) {
+        if (!std::isinf(depth_image(y, x))) {
           filled_in_depth_image(y, x) = depth_image(y, x);
           filled_in_color_image(y, x) = color_image(y, x);
           continue;
@@ -280,7 +280,7 @@ int main(int argc, char** argv) {
             if (dx == 0 && dy == 0) {
               continue;
             }
-            if (!isinf(depth_image(y + dy, x + dx))) {
+            if (!std::isinf(depth_image(y + dy, x + dx))) {
               buffer[index] = depth_image(y + dy, x + dx);
               r_sum += color_image(y + dy, x + dx)(2);
               g_sum += color_image(y + dy, x + dx)(1);
@@ -322,7 +322,7 @@ int main(int argc, char** argv) {
     cv::Mat_<bool> filled_in_validity_map(image_height, image_width);
     for (int y = 0; y < image_height; ++ y) {
       for (int x = 0; x < image_width; ++ x) {
-        filled_in_validity_map(y, x) = !isinf(filled_in_depth_image(y, x));
+        filled_in_validity_map(y, x) = !std::isinf(filled_in_depth_image(y, x));
       }
     }
     while (have_invalid_color_pixels) {
