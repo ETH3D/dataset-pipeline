@@ -104,19 +104,21 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
     const size_t kNumIterations = 100;
     const float kMaxStepNorm = 1e-10;
     const float kRelStepSize = 1e-6;
-    constexpr float eps = std::numeric_limits<double>::epsilon();
+    constexpr float eps = 1e-4;
     float ddr;
 
     for (size_t i = 0; i < kNumIterations; ++i) {
       const float step = std::max(eps,
                                   abs(kRelStepSize * radius_squared));
-      ddr = (child->DistortionFactor(radius_squared) - child-> DistortedDerivativeByNormalized(radius_squared + step))/step;
-      const float update_step = 1.f/ddr;
+      ddr = (child->DistortedDerivativeByNormalized(radius_squared + step) - child-> DistortedDerivativeByNormalized(radius_squared))/step;
+      const float update_step = child->DistortedDerivativeByNormalized(radius_squared)/ddr;
       radius_squared -= update_step;
-      if (update_step < kMaxStepNorm) {
+      if (abs(update_step) < kMaxStepNorm) {
         break;
       }
     }
+    if(radius_squared > 0 && abs(child->DistortedDerivativeByNormalized(radius_squared)) < eps)
+      this->radius_cutoff_squared_ = radius_squared;
   }
 
 };

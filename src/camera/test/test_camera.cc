@@ -96,11 +96,9 @@ void UndistortAndDistortImageCornersTest(const Camera& test_camera) {
           if(test_x % 20 == 0 || test_y % 20 == 0){
             Eigen::Vector2f test_nxy = Eigen::Vector2f(test_camera.fx_inv() * test_x + test_camera.cx_inv(),
                                         test_camera.fy_inv() * test_y + test_camera.cy_inv());
-            Eigen::Vector2f distorted = test_camera.Distort(test_nxy);
-            int test_x2 = round(test_camera.fx() * distorted.x() + test_camera.cx());
-            int test_y2 = round(test_camera.fy() * distorted.y() + test_camera.cy());
-            if(test_x2 > 0 && test_y2 > 0 && test_x2 < test_camera.width()-1 && test_y2 < test_camera.height()-1)
-              debug_image(test_y2, test_x2) = cv::Vec3b(255, 255, 255);
+            Eigen::Vector2f distorted = test_camera.NormalizedToImage(test_nxy);
+            if(distorted.x() > 0 && distorted.y() > 0 && distorted.x() < test_camera.width()-1 && distorted.y() < test_camera.height()-1)
+              debug_image(distorted.y(), distorted.x()) = cv::Vec3b(255, 255, 255);
           }
         }
       }
@@ -271,14 +269,13 @@ void TestImageDerivativeByWorld(const Camera& camera) {
 template<class Camera>
 void CreateDeltaCamera(
     const Camera& base_camera,
-    const float* delta,
+    const float delta,
+    const int i_param,
     std::shared_ptr<Camera>* result) {
-  constexpr int kParameterCount = Camera::ParameterCount();
-  float parameters[kParameterCount];
+  constexpr int kNumParameters = Camera::ParameterCount();
+  float parameters[kNumParameters];
   base_camera.GetParameters(parameters);
-  for (int i = 0; i < kParameterCount; ++ i) {
-    parameters[i] += delta[i];
-  }
+  parameters[i_param] += delta;
   result->reset(new Camera(base_camera.width(), base_camera.height(), parameters));
 }
 
@@ -286,25 +283,24 @@ template<class Camera>
 void NumericalImageDerivativeByIntrinsics(
     const Camera& base_camera,
     const float nx, const float ny,
-    const float* delta,
+    const float delta, const int i_param,
     float* result_x, float* result_y) {
   constexpr int kNumParameters = Camera::ParameterCount();
   const float kStep = 0.01f;
-  const float kTwoSteps = 2 * kStep;
 
   std::shared_ptr<Camera> plus, minus;
-  float plus_delta[kNumParameters], minus_delta[kNumParameters];
-  for (int i = 0; i < kNumParameters; ++ i) {
-    plus_delta[i] = kStep * delta[i];
-    minus_delta[i] = -1.f * plus_delta[i];
-  }
-  CreateDeltaCamera(base_camera, plus_delta, &plus);
-  CreateDeltaCamera(base_camera, minus_delta, &minus);
+  float plus_delta, minus_delta;
+  float parameters[kNumParameters];
+  base_camera.GetParameters(parameters);
+  plus_delta = kStep * delta;
+  minus_delta = -1.f * plus_delta;
+  CreateDeltaCamera(base_camera, plus_delta, i_param, &plus);
+  CreateDeltaCamera(base_camera, minus_delta, i_param, &minus);
 
   Eigen::Vector2f proj_plus_x = plus->NormalizedToImage(Eigen::Vector2f(nx, ny));
   Eigen::Vector2f proj_minus_x = minus->NormalizedToImage(Eigen::Vector2f(nx, ny));
-  *result_x = (proj_plus_x.x() - proj_minus_x.x()) / kTwoSteps;
-  *result_y = (proj_plus_x.y() - proj_minus_x.y()) / kTwoSteps;
+  *result_x = (proj_plus_x.x() - proj_minus_x.x()) / (2 * plus_delta);
+  *result_y = (proj_plus_x.y() - proj_minus_x.y()) / (2 * plus_delta);
 }
 
 template<class Camera>
@@ -333,13 +329,9 @@ void TestImageDerivativeByIntrinsics(
         kTest3DPoints[i], deriv_xy);
 
     float numerical_x, numerical_y;
-    float delta[kNumParameters];
-    memset(delta, 0, kNumParameters * sizeof(delta[0]));
     for (int c = 0; c < kNumParameters; ++ c) {
-      delta[c] = 1;
       NumericalImageDerivativeByIntrinsics(
-          camera, nx, ny, delta, &numerical_x, &numerical_y);
-      delta[c] = 0;
+          camera, nx, ny, 1, c, &numerical_x, &numerical_y);
 
       EXPECT_NEAR(deriv_xy(0,c), numerical_x, 2.5e-3f)
           << "Failure for point " << i << ", component " << c;
@@ -440,14 +432,14 @@ TEST(Camera, SimplePinhole) {
 }
 
 TEST(Camera, Radial) {
-  camera::RadialCamera radial_camera(kImageWidth, kImageHeight, kFX,
-                                             kFY, kCX, kCY, kK1, -kK2);
+  camera::RadialCamera radial_camera(kImageWidth, kImageHeight,
+                                     kFX, kCX, kCY, -0.5*kK1, 0);
   RunCameraModelTests(radial_camera);
 }
 
 TEST(Camera, RadialFisheye) {
   camera::RadialFisheyeCamera radial_fisheye_camera(kImageWidth, kImageHeight, kFX,
-                                                    kFY, kCX, kCY, kK1, -kK2);
+                                                    kCX, kCY, -kK1, -kK2);
   RunCameraModelTests(radial_fisheye_camera);
 }
 

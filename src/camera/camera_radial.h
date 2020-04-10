@@ -43,13 +43,17 @@ namespace camera {
 // Models pinhole cameras with a polynomial distortion model.
 class RadialCamera : public RadialBase<RadialCamera> {
  public:
-  RadialCamera(int width, int height, float fx, float fy, float cx,
+  RadialCamera(int width, int height, float f, float cx,
                    float cy, float k1, float k2);
 
   RadialCamera(int width, int height, const float* parameters);
 
   static constexpr int ParameterCount() {
-    return 4 + 2;
+    return 3 + 2;
+  }
+
+  static constexpr bool UniqueFocalLength() {
+    return true;
   }
 
   inline float DistortionFactor(const float r2) const {
@@ -103,11 +107,10 @@ class RadialCamera : public RadialBase<RadialCamera> {
 
   inline void GetParameters(float* parameters) const {
     parameters[0] = fx();
-    parameters[1] = fy();
-    parameters[2] = cx();
-    parameters[3] = cy();
-    parameters[4] = distortion_parameters_.x();
-    parameters[5] = distortion_parameters_.y();
+    parameters[1] = cx();
+    parameters[2] = cy();
+    parameters[3] = distortion_parameters_.x();
+    parameters[4] = distortion_parameters_.y();
   }
 
   inline const Eigen::Vector2f& distortion_parameters() const {
