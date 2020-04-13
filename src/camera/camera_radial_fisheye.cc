@@ -33,14 +33,14 @@
 #include <glog/logging.h>
 
 namespace camera {
-RadialFisheyeCamera::RadialFisheyeCamera(int width, int height, float fx, float fy,
+RadialFisheyeCamera::RadialFisheyeCamera(int width, int height, float f,
                                          float cx, float cy, float k1, float k2)
-    : FisheyeBase(width, height, fx, fy, cx, cy, Type::kRadialFisheye,
-      new RadialCamera(width, height, fx, fy, cx, cy, k1, k2)) {}
+    : FisheyeBase(width, height, f, f, cx, cy, Type::kRadialFisheye,
+      new RadialCamera(width, height, f, cx, cy, k1, k2)) {}
 
 RadialFisheyeCamera::RadialFisheyeCamera(int width, int height,
                                          const float* parameters)
-    : FisheyeBase(width, height, parameters[0], parameters[1], parameters[2],
-                  parameters[3], Type::kRadialFisheye,
+    : FisheyeBase(width, height, parameters[0], parameters[0], parameters[1],
+                  parameters[2], Type::kRadialFisheye,
                   new RadialCamera(width, height, parameters)) {}
 }  // namespace camera

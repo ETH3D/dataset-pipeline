@@ -33,18 +33,18 @@
 #include <glog/logging.h>
 
 namespace camera {
-RadialCamera::RadialCamera(int width, int height, float fx, float fy,
+RadialCamera::RadialCamera(int width, int height, float f,
                            float cx, float cy, float k1, float k2)
-    : RadialBase(width, height, fx, fy, cx, cy, Type::kRadial),
+    : RadialBase(width, height, f, f, cx, cy, Type::kRadial),
       distortion_parameters_(Eigen::Vector2f(k1, k2)) {
   InitCutoff();
 }
 
 RadialCamera::RadialCamera(int width, int height,
                                    const float* parameters)
-    : RadialBase(width, height, parameters[0], parameters[1], parameters[2],
-                     parameters[3], Type::kRadial),
-      distortion_parameters_(Eigen::Vector2f(parameters[4], parameters[5])) {
+    : RadialBase(width, height, parameters[0], parameters[0], parameters[1],
+                     parameters[2], Type::kRadial),
+      distortion_parameters_(Eigen::Vector2f(parameters[3], parameters[4])) {
   InitCutoff();
 }
 }  // namespace camera
