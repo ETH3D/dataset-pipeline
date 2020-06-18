@@ -58,7 +58,8 @@
 
 namespace dataset_inspector {
 
-MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
+MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags,
+                       bool optimization_tools, const float max_occ_depth)
     : QMainWindow(parent, flags) {
   current_image_id_ = opt::Image::kInvalidId;
   
@@ -113,6 +114,7 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
   // ### Image display ###
   image_widget_ = new ImageWidget();
   image_widget_->SetShowMask(kShowMasksByDefault);
+  image_widget_->SetMaxOccDepth(max_occ_depth);
   horizontal_layout->addWidget(image_widget_, 1);
   
   
@@ -265,11 +267,13 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
   new_item->setText("scan reprojection");
   new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kScanReprojection)));
   mode_list_->addItem(new_item);
-  
-  new_item = new QListWidgetItem();
-  new_item->setText("optimization points");
-  new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kOptimizationPoints)));
-  mode_list_->addItem(new_item);
+
+  if(optimization_tools){
+    new_item = new QListWidgetItem();
+    new_item->setText("optimization points");
+    new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kOptimizationPoints)));
+    mode_list_->addItem(new_item);
+  }
   
   new_item = new QListWidgetItem();
   new_item->setText("depth map");
@@ -290,26 +294,28 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
   new_item->setText("occlusion depth map");
   new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kOcclusionDepthMap)));
   mode_list_->addItem(new_item);
-  
-  new_item = new QListWidgetItem();
-  new_item->setText("cost (fixed)");
-  new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostFixed)));
-  mode_list_->addItem(new_item);
-  
-  new_item = new QListWidgetItem();
-  new_item->setText("cost (fixed) - highest 80% only");
-  new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostFixedHighestOnly)));
-  mode_list_->addItem(new_item);
-  
-  new_item = new QListWidgetItem();
-  new_item->setText("cost (variable)");
-  new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostVariable)));
-  mode_list_->addItem(new_item);
-  
-  new_item = new QListWidgetItem();
-  new_item->setText("cost (fixed + variable)");
-  new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostFixedPlusVariable)));
-  mode_list_->addItem(new_item);
+
+  if(optimization_tools){
+    new_item = new QListWidgetItem();
+    new_item->setText("cost (fixed)");
+    new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostFixed)));
+    mode_list_->addItem(new_item);
+
+    new_item = new QListWidgetItem();
+    new_item->setText("cost (fixed) - highest 80% only");
+    new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostFixedHighestOnly)));
+    mode_list_->addItem(new_item);
+
+    new_item = new QListWidgetItem();
+    new_item->setText("cost (variable)");
+    new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostVariable)));
+    mode_list_->addItem(new_item);
+
+    new_item = new QListWidgetItem();
+    new_item->setText("cost (fixed + variable)");
+    new_item->setData(Qt::UserRole, QVariant(static_cast<int>(Mode::kCostFixedPlusVariable)));
+    mode_list_->addItem(new_item);
+  }
   
   
   // Set default tool.

@@ -126,6 +126,11 @@ void ImageWidget::SetShowMask(bool show_mask) {
   update(rect());
 }
 
+void ImageWidget::SetMaxOccDepth(float max_occ_depth) {
+  max_occ_depth_ = max_occ_depth;
+  update(rect());
+}
+
 QSize ImageWidget::sizeHint() const {
   // Relatively arbitrary setting.
   return QSize(640, 480);
@@ -226,7 +231,7 @@ void ImageWidget::paintEvent(QPaintEvent* event) {
         occlusion_depth_map_.create(occlusion_image.rows, occlusion_image.cols);
         for (int y = 0; y < occlusion_image.rows; ++ y) {
           for (int x = 0; x < occlusion_image.cols; ++ x) {
-            occlusion_depth_map_(y, x) = std::min<int>(255, 255.f / 20.f * occlusion_image(y, x));
+            occlusion_depth_map_(y, x) = std::min<int>(255, 255.f / max_occ_depth_ * occlusion_image(y, x));
           }
         }
       }
@@ -594,7 +599,8 @@ void ImageWidget::UpdateDepthMap(
     int display_image_scale,
     bool mask_occlusion_boundaries) {
   cv::Mat_<float> occlusion_image = problem_->occlusion_geometry().RenderDepthMap(
-      intrinsics, image, display_image_scale, mask_occlusion_boundaries);
+      intrinsics, image, display_image_scale,
+      mask_occlusion_boundaries);
   
   Eigen::Matrix3f image_R_global = image.image_T_global.so3().matrix();
   Eigen::Vector3f image_T_global = image.image_T_global.translation();

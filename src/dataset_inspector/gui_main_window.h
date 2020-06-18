@@ -64,7 +64,10 @@ enum class Mode {
 class MainWindow : public QMainWindow {
  Q_OBJECT
  public:
-  MainWindow(QWidget* parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags());
+  MainWindow(QWidget* parent = nullptr,
+             Qt::WindowFlags flags = Qt::WindowFlags(),
+             bool optimization_tools=true,
+             float max_occ_depth=20.f);
   
   bool LoadDataset(
       const std::string& scan_alignment_path,

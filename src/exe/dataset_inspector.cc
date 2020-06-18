@@ -72,24 +72,36 @@ int main(int argc, char** argv) {
   for (const std::string& id_to_ignore : camera_ids_to_ignore_split) {
     camera_ids_to_ignore.insert(atoi(id_to_ignore.c_str()));
   }
+
+  float max_occ_depth = 20.f;
+  pcl::console::parse_argument(argc, argv, "--occlusion_depth_saturation", max_occ_depth);
   
   opt::GlobalParameters().SetFromArguments(argc, argv);
   
   
   // Verify arguments.
   if (scan_alignment_path.empty() ||
-      occlusion_mesh_paths.empty() ||
-      multi_res_point_cloud_directory_path.empty() ||
       image_base_path.empty() ||
       state_path.empty()) {
     LOG(ERROR) << "Please specify all the required paths.";
     return EXIT_FAILURE;
   }
+
+  if(occlusion_mesh_paths.empty()){
+    LOG(WARNING) << "No occlusion mesh specifed, "
+                 << "2D splats from the scan point cloud will be used.";
+  }
+
+  bool optimization_tools = !multi_res_point_cloud_directory_path.empty();
+  if(!optimization_tools){
+    LOG(WARNING) << "No multi resolution cloud path specified, "
+                << "Interface will not show cost points and optimization elements";
+  }
   
   // Run application.
   QApplication qapp(argc, argv);
   
-  dataset_inspector::MainWindow main_window(nullptr, Qt::WindowFlags());
+  dataset_inspector::MainWindow main_window(nullptr, Qt::WindowFlags(), optimization_tools, max_occ_depth);
   main_window.LoadDataset(
       scan_alignment_path,
       occlusion_mesh_paths_vector,
