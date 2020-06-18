@@ -282,8 +282,9 @@ template <class Child> class CameraBaseImpl : public CameraBase {
       Eigen::MatrixBase<Derived2>* second_best_result,
       bool* second_best_available) const {
     // Try different initialization points and take the result with the smallest
-    // radius. Since this should be the only acceptable one, also store the second
-    // smallest result. Thus we know the radius cutoff should be between the two
+    // radius. Cutoff radius must be above this result.
+    // Besides, since this should be the only acceptable one, al other resultats are above cutoff.
+    // Thus, store the second smallest result so that we know the radius cutoff should be between the two
     constexpr int kNumGridSteps = 10;
     constexpr float kGridHalfExtent = 1.5f;
     constexpr float kImproveThreshold = 0.99f;
