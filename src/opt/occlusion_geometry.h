@@ -52,14 +52,28 @@ class OcclusionGeometry {
   OcclusionGeometry();
   ~OcclusionGeometry();
    
+  struct MeshMetadata {
+    std::string file_path;
+    bool compute_edges;
+    Sophus::Sim3f transformation;
+  };
+
   // Initializes a splat-based occlusion geometry.
   void SetSplatPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr splat_points);
   
   // Initializes a mesh-based occlusion geometry. Can be called multiple times
   // to add several meshes. Returns true if successful.
   bool AddMesh(const std::string& mesh_file_path);
-  bool AddMesh(const std::string& mesh_file_path, const Sophus::SE3f& transformation);
-  bool AddMesh(const pcl::PolygonMesh& mesh);
+  bool AddSplats(const std::string& mesh_file_path);
+  bool AddMesh(const std::string& mesh_file_path, const Sophus::Sim3f& transformation, const bool compute_edges=true);
+  bool AddSplats(const std::string& mesh_file_path, const Sophus::Sim3f& transformation);
+  bool AddMeshMeshLab(const std::string& mesh_file_path, const Sophus::Sim3f& transformation, const bool compute_edges=true);
+  bool AddMeshPLY(const std::string& mesh_file_path, const Sophus::Sim3f& transformation, const bool compute_edges=true);
+  bool AddMesh(pcl::PolygonMesh& mesh, const Sophus::Sim3f& transformation, const bool compute_edges=true);
+
+  const std::vector<MeshMetadata>& MetadataVector() const {
+    return metadata_vector_;
+  }
   
   cv::Mat_<float> RenderDepthMap(
       const opt::Intrinsics& intrinsics,
@@ -119,33 +133,30 @@ class OcclusionGeometry {
   
   template<class Camera>
   void DrawSplatsAtEdgeIfVisible(
-      int splat_radius,
       const Camera& camera,
       const Eigen::Matrix3f& image_R_global,
       const Eigen::Vector3f& image_T_global,
       const Eigen::Vector3f& endpoint1,
       const Eigen::Vector3f& endpoint2,
-      const cv::Mat_<float>& input,
       cv::Mat_<float>* output) const;
   
   template<class Camera>
   void DrawEdgeSplatIfVisible(
-      int splat_radius,
+      float point_radius,
       const Camera& camera,
-      const Eigen::Matrix3f& image_R_global,
-      const Eigen::Vector3f& image_T_global,
-      const Eigen::Vector3f& point,
-      const cv::Mat_<float>& input,
+      const Eigen::Vector3f& image_point,
       cv::Mat_<float>* output) const;
   
   pcl::PointCloud<pcl::PointXYZ>::Ptr splat_points_;
-  
-  mutable std::mutex mutable_mutex_;
+
   bool opengl_context_initialized_;
   opengl::OpenGLContext opengl_context_;
   mutable std::shared_ptr<opengl::Renderer> depthmap_renderer_;
   mutable opengl::RendererProgramStoragePtr program_storage_;
   std::vector<std::shared_ptr<opengl::Mesh>> meshes_;
+  std::vector<MeshMetadata> metadata_vector_;
+  std::vector<std::string> mesh_paths_;
+  std::vector<std::string> splats_paths_;
   std::vector<std::shared_ptr<EdgesWithFaceNormalsMesh>> edge_meshes_;
 };
 

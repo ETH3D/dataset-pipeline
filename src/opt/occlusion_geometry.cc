@@ -28,12 +28,14 @@
 
 
 #include "opt/occlusion_geometry.h"
+#include "io/meshlab_project.h"
 
 #include <opencv2/highgui/highgui.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/conversions.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/PolygonMesh.h>
+#include <glog/logging.h>
 
 #include "camera/camera_models.h"
 
@@ -58,32 +60,93 @@ void OcclusionGeometry::SetSplatPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr splat
   splat_points_ = splat_points;
 }
 
-bool OcclusionGeometry::AddMesh(const std::string& mesh_file_path) {
-  return AddMesh(mesh_file_path, Sophus::SE3f());
+bool OcclusionGeometry::AddSplats(const std::string& mesh_file_path){
+  return AddMesh(mesh_file_path, Sophus::Sim3f(), false);
 }
 
-bool OcclusionGeometry::AddMesh(const std::string& mesh_file_path, const Sophus::SE3f& transformation) {
+bool OcclusionGeometry::AddMesh(const std::string& mesh_file_path) {
+  return AddMesh(mesh_file_path, Sophus::Sim3f(), true);
+}
+
+bool OcclusionGeometry::AddSplats(const std::string& mesh_file_path,
+                                  const Sophus::Sim3f& transformation) {
+  return AddMesh(mesh_file_path, transformation, false);
+}
+
+bool OcclusionGeometry::AddMesh(const std::string& mesh_file_path,
+                                const Sophus::Sim3f& transformation,
+                                const bool compute_edges) {
+  if(boost::filesystem::extension(mesh_file_path) == ".mlp"){
+    return AddMeshMeshLab(mesh_file_path, transformation, compute_edges);
+  }else if(boost::filesystem::extension(mesh_file_path) == ".ply"){
+    return AddMeshPLY(mesh_file_path, transformation, compute_edges);
+  }else{
+    LOG(ERROR) << "Mesh file format must be either .mlp or .ply, got " << mesh_file_path;
+    return false;
+  }
+}
+
+bool OcclusionGeometry::AddMeshMeshLab(const std::string& mesh_file_path,
+                                                           const Sophus::Sim3f& transformation,
+                                                           const bool compute_edges){
+  io::MeshLabMeshInfoVector mesh_infos;
+  // Load scan poses from MeshLab project file.
+  if (!io::ReadMeshLabProject(mesh_file_path, &mesh_infos)) {
+    LOG(ERROR) << "Cannot read mesh poses from " << mesh_file_path;
+    return false;
+  }
+
+  boost::filesystem::path scan_alignment_file_directory =
+      boost::filesystem::path(mesh_file_path).parent_path();
+  for (const io::MeshLabProjectMeshInfo& scan_info : mesh_infos) {
+    std::string file_path =
+        boost::filesystem::path(scan_info.filename).is_absolute() ?
+        scan_info.filename :
+        (scan_alignment_file_directory / scan_info.filename).string();
+
+    if(!AddMeshPLY(file_path, transformation * scan_info.global_T_mesh, compute_edges))
+      return false;
+  }
+
+  LOG(INFO) << "Done.";
+
+  return true;
+}
+
+bool OcclusionGeometry::AddMeshPLY(const std::string& mesh_file_path,
+                                   const Sophus::Sim3f& transformation,
+                                   const bool compute_edges) {
+  LOG(INFO) << "adding mesh " << mesh_file_path;
   // Try to load the mesh.
   pcl::PolygonMesh polygon_mesh_cpu;
   if (pcl::io::loadPLYFile(mesh_file_path, polygon_mesh_cpu) < 0) {
     LOG(ERROR) << "Cannot read file: " << mesh_file_path;
     return false;
   }
+
+  // Add mesh metadata
+  MeshMetadata metadata;
+  metadata.file_path = mesh_file_path;
+  metadata.compute_edges = compute_edges;
+  metadata.transformation = transformation;
+
+  metadata_vector_.push_back(metadata);
   
+  // Transfer the mesh to the GPU.
+  return AddMesh(polygon_mesh_cpu, transformation, compute_edges);
+}
+
+bool OcclusionGeometry::AddMesh(pcl::PolygonMesh& cpu_mesh,
+                                const Sophus::Sim3f& transformation,
+                                const bool compute_edges) {
   // Transform the mesh.
   pcl::PointCloud<pcl::PointXYZ> mesh_vertex_cloud;
-  pcl::fromPCLPointCloud2(polygon_mesh_cpu.cloud, mesh_vertex_cloud);
+  pcl::fromPCLPointCloud2(cpu_mesh.cloud, mesh_vertex_cloud);
   pcl::transformPointCloud(
       mesh_vertex_cloud,
       mesh_vertex_cloud,
       transformation.matrix());
-  pcl::toPCLPointCloud2(mesh_vertex_cloud, polygon_mesh_cpu.cloud);
-  
-  // Transfer the mesh to the GPU.
-  return AddMesh(polygon_mesh_cpu);
-}
-
-bool OcclusionGeometry::AddMesh(const pcl::PolygonMesh& cpu_mesh) {
+  pcl::toPCLPointCloud2(mesh_vertex_cloud, cpu_mesh.cloud);
   // If this is the first mesh, initialize an OpenGL context.
   if (!opengl_context_initialized_) {
     if (!opengl::InitializeOpenGLWindowless(3, &opengl_context_)) {
@@ -107,9 +170,12 @@ bool OcclusionGeometry::AddMesh(const pcl::PolygonMesh& cpu_mesh) {
   meshes_.push_back(new_mesh);
   
   // Compute edge-adjacent-normals list.
-  std::shared_ptr<EdgesWithFaceNormalsMesh> edges_with_face_normals(new EdgesWithFaceNormalsMesh());
-  ComputeEdgeNormalsList(cpu_mesh, edges_with_face_normals.get());
-  edge_meshes_.push_back(edges_with_face_normals);
+  if(compute_edges){
+    std::shared_ptr<EdgesWithFaceNormalsMesh> edges_with_face_normals(new EdgesWithFaceNormalsMesh());
+    LOG(INFO) << "computing edges";
+    ComputeEdgeNormalsList(cpu_mesh, edges_with_face_normals.get());
+    edge_meshes_.push_back(edges_with_face_normals);
+  }
   return true;
 }
 

@@ -197,9 +197,11 @@ int main(int argc, char** argv) {
   std::string scan_alignment_path;
   pcl::console::parse_argument(argc, argv, "--scan_alignment_path", scan_alignment_path);
   
-  std::string occlusion_mesh_paths;
-  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_paths", occlusion_mesh_paths);
-  std::vector<std::string> occlusion_mesh_paths_vector = util::SplitString(',', occlusion_mesh_paths);
+  std::string occlusion_mesh_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_path", occlusion_mesh_path);
+
+  std::string occlusion_splats_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_splats_path", occlusion_splats_path);
   
   std::string image_base_path;
   pcl::console::parse_argument(argc, argv, "--image_base_path", image_base_path);
@@ -249,45 +251,45 @@ int main(int argc, char** argv) {
     
     // Correct scans.
     for (size_t i = 0; i < scan_infos.size(); ++ i) {
-      scan_infos[i].global_T_mesh = first_scan_up_transformation * scan_infos[i].global_T_mesh;
+      scan_infos[i].global_T_mesh = Sophus::Sim3f(first_scan_up_transformation.matrix() * scan_infos[i].global_T_mesh.matrix());
       scan_infos[i].global_T_mesh_full = scan_infos[i].global_T_mesh.matrix();
-      for (size_t p = 0; p < colored_scans[i]->size(); ++ p) {
-        colored_scans[i]->at(p).getVector3fMap() = first_scan_up_rotation * colored_scans[i]->at(p).getVector3fMap() + first_scan_up_translation;
-      }
-    }
-  }
-  
-  // Create occlusion geometry.
-  pcl::PointCloud<pcl::PointXYZ>::Ptr occlusion_point_cloud(
-      new pcl::PointCloud<pcl::PointXYZ>());
-  size_t total_point_count = 0;
-  for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
-    total_point_count += scan_cloud->size();
-  }
-  occlusion_point_cloud->resize(total_point_count);
-  size_t occlusion_point_index = 0;
-  for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
-    for (size_t scan_point_index = 0; scan_point_index < scan_cloud->size(); ++ scan_point_index) {
-      occlusion_point_cloud->at(occlusion_point_index).getVector3fMap() =
-          scan_cloud->at(scan_point_index).getVector3fMap();
-      ++ occlusion_point_index;
-    }
-  }
-  
-  if (rotate_first_scan_upright) {
-    // Correct occlusion point cloud.
-    for (size_t p = 0; p < occlusion_point_cloud->size(); ++ p) {
-      occlusion_point_cloud->at(p).getVector3fMap() = first_scan_up_rotation * occlusion_point_cloud->at(p).getVector3fMap() + first_scan_up_translation;
+      pcl::transformPointCloud(*colored_scans[i], *colored_scans[i], first_scan_up_transformation.matrix());
     }
   }
   
   // Create occlusion geometry and allocate optimization problem object.
   std::shared_ptr<opt::OcclusionGeometry> occlusion_geometry(new opt::OcclusionGeometry());
-  if (occlusion_mesh_paths_vector.empty()) {
+  if (occlusion_mesh_path.empty()) {
+    // Create splats from scan points.
+    pcl::PointCloud<pcl::PointXYZ>::Ptr occlusion_point_cloud(
+        new pcl::PointCloud<pcl::PointXYZ>());
+    size_t total_point_count = 0;
+    for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
+      total_point_count += scan_cloud->size();
+    }
+    occlusion_point_cloud->resize(total_point_count);
+    size_t occlusion_point_index = 0;
+    for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
+      for (size_t scan_point_index = 0; scan_point_index < scan_cloud->size(); ++ scan_point_index) {
+        occlusion_point_cloud->at(occlusion_point_index).getVector3fMap() =
+            scan_cloud->at(scan_point_index).getVector3fMap();
+        ++ occlusion_point_index;
+      }
+    }
+    
+    if (rotate_first_scan_upright) {
+      // Correct occlusion point cloud.
+      pcl::transformPointCloud(*occlusion_point_cloud, *occlusion_point_cloud, first_scan_up_transformation.matrix());
+    }
     occlusion_geometry->SetSplatPoints(occlusion_point_cloud);
   } else {
-    for (const std::string& mesh_file_path : occlusion_mesh_paths_vector) {
-      occlusion_geometry->AddMesh(mesh_file_path, first_scan_up_transformation);
+    if (!occlusion_mesh_path.empty()){
+      LOG(INFO) << "Loading Occlusion mesh";
+      occlusion_geometry->AddMesh(occlusion_mesh_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));
+    }
+    if (!occlusion_splats_path.empty()){
+      LOG(INFO) << "Loading Occlusion splats";
+      occlusion_geometry->AddSplats(occlusion_splats_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));
     }
   }
   

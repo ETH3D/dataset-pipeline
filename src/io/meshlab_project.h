@@ -130,4 +130,34 @@ inline std::vector<typename pcl::PointCloud<PointT>::Ptr> PointCloudVectorFromMe
   return result;
 }
 
+inline std::vector<typename pcl::PolygonMesh::Ptr> MeshVectorFromMeshLabMeshInfoVectors(
+    const io::MeshLabMeshInfoVector& mesh_infos,
+    const std::string& base_path) {
+  std::vector<typename pcl::PolygonMesh::Ptr> result;
+
+  for (const io::MeshLabProjectMeshInfo& scan_info : mesh_infos) {
+    std::string file_path =
+        boost::filesystem::path(scan_info.filename).is_absolute() ?
+        scan_info.filename :
+        (boost::filesystem::path(base_path) / scan_info.filename).string();
+
+    typename pcl::PolygonMesh local_mesh;
+    if (pcl::io::loadPLYFile(file_path, local_mesh) < 0) {
+      result.clear();
+      return result;
+    }
+
+    typename pcl::PolygonMesh::Ptr global_mesh(&local_mesh);
+    pcl::PointCloud<pcl::PointXYZ> mesh_vertex_cloud;
+    pcl::fromPCLPointCloud2(local_mesh.cloud, mesh_vertex_cloud);
+    pcl::transformPointCloud(
+        mesh_vertex_cloud,
+        mesh_vertex_cloud,
+        scan_info.global_T_mesh.matrix());
+    pcl::toPCLPointCloud2(mesh_vertex_cloud, local_mesh.cloud);
+    result.push_back(global_mesh);
+  }
+  return result;
+}
+
 }  // namespace io

@@ -71,7 +71,8 @@ class MainWindow : public QMainWindow {
   
   bool LoadDataset(
       const std::string& scan_alignment_path,
-      const std::vector<std::string>& occlusion_mesh_paths,
+      const std::string& occlusion_mesh_path,
+      const std::string& splat_mesh_path,
       const std::string& multi_res_point_cloud_directory_path,
       const std::string& image_base_path,
       const std::string& state_path,
@@ -195,7 +196,8 @@ class MainWindow : public QMainWindow {
   int current_image_id_;
   std::shared_ptr<opt::Problem> problem_;
   std::string scan_alignment_path_;
-  std::vector<std::string> occlusion_mesh_paths_;
+  std::string occlusion_mesh_path_;
+  std::string splat_mesh_path_;
   std::string image_base_path_;
   std::string state_path_;
 };

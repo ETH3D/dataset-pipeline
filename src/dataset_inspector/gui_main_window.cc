@@ -324,13 +324,15 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags,
 
 bool MainWindow::LoadDataset(
     const std::string& scan_alignment_path,
-    const std::vector<std::string>& occlusion_mesh_paths,
+    const std::string& occlusion_mesh_path,
+    const std::string& splat_mesh_path,
     const std::string& multi_res_point_cloud_directory_path,
     const std::string& image_base_path,
     const std::string& state_path,
     const std::unordered_set<int>& camera_ids_to_ignore) {
   scan_alignment_path_ = scan_alignment_path;
-  occlusion_mesh_paths_ = occlusion_mesh_paths;
+  occlusion_mesh_path_ = occlusion_mesh_path;
+  splat_mesh_path_ = splat_mesh_path;
   image_base_path_ = image_base_path;
   state_path_ = state_path;
   
@@ -703,9 +705,10 @@ void MainWindow::EditOcclusionGeometryClicked(bool /*checked*/) {
   editor_window->OpenFile(QString::fromStdString(scan_alignment_path_));
   
   // Open occlusion meshes
-  for (const std::string path : occlusion_mesh_paths_) {
-    editor_window->OpenFile(QString::fromStdString(path));
-  }
+  if(!occlusion_mesh_path_.empty())
+    editor_window->OpenFile(QString::fromStdString(occlusion_mesh_path_));
+  if(!splat_mesh_path_.empty())
+    editor_window->OpenFile(QString::fromStdString(splat_mesh_path_));
 }
 
 void MainWindow::ReloadOcclusionGeometryClicked(bool /*checked*/) {
@@ -715,20 +718,27 @@ void MainWindow::ReloadOcclusionGeometryClicked(bool /*checked*/) {
   
   if (editor_window) {
     // Reload from editor.
+    const opt::OcclusionGeometry& old_occlusion_geometry = problem_->occlusion_geometry();
+    const auto& metadata_vector = old_occlusion_geometry.MetadataVector();
+
     std::shared_ptr<opt::OcclusionGeometry> occlusion_geometry(new opt::OcclusionGeometry());
-    std::vector<bool> occlusion_mesh_found(occlusion_mesh_paths_.size(), false);
+    std::vector<bool> occlusion_mesh_found(
+      metadata_vector.size(), false);
     
     pcl::PolygonMesh polygon_mesh;
     for (int i = 0; i < editor_window->scene().object_count(); ++ i) {
       const point_cloud_editor::Object& object = editor_window->scene().object(i);
       boost::filesystem::path object_path = object.filename;
       
-      for (std::size_t i = 0; i < occlusion_mesh_paths_.size(); ++ i) {
-        const std::string& path = occlusion_mesh_paths_[i];
+      for (std::size_t i = 0; i < metadata_vector.size(); ++ i) {
+        const auto& metadata = metadata_vector[i];
+        const std::string& path = metadata.file_path;
         if (object_path == boost::filesystem::path(path)) {
+          LOG(INFO) << path;
           occlusion_mesh_found[i] = true;
           object.ToPCLPolygonMesh(&polygon_mesh);
-          occlusion_geometry->AddMesh(polygon_mesh);
+          occlusion_geometry->AddMesh(polygon_mesh, metadata.transformation, metadata.compute_edges);
+          LOG(INFO) << "Done.";
         }
       }
     }
@@ -1159,7 +1169,7 @@ float MainWindow::GetRotationStep() {
 bool MainWindow::ReloadOcclusionGeometry(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>* colored_scans) {
   std::shared_ptr<opt::OcclusionGeometry> occlusion_geometry(new opt::OcclusionGeometry());
   
-  if (occlusion_mesh_paths_.empty()) {
+  if (occlusion_mesh_path_.empty() && splat_mesh_path_.empty()) {
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> local_colored_scans;
     if (!colored_scans) {
       colored_scans = &local_colored_scans;
@@ -1187,9 +1197,10 @@ bool MainWindow::ReloadOcclusionGeometry(std::vector<pcl::PointCloud<pcl::PointX
     
     occlusion_geometry->SetSplatPoints(occlusion_point_cloud);
   } else {
-    for (const std::string& mesh_file_path : occlusion_mesh_paths_) {
-      occlusion_geometry->AddMesh(mesh_file_path);
-    }
+    if(!occlusion_mesh_path_.empty())
+      occlusion_geometry->AddMesh(occlusion_mesh_path_);
+    if(!splat_mesh_path_.empty())
+      occlusion_geometry->AddSplats(splat_mesh_path_);
   }
   
   // Put the geometry into the optimization problem.
