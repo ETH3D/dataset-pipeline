@@ -87,6 +87,8 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "--output_path", output_path);
   float distance_threshold = 0.02f;
   pcl::console::parse_argument(argc, argv, "--distance_threshold", distance_threshold);
+  float max_splat_size = std::numeric_limits<float>::infinity();;
+  pcl::console::parse_argument(argc, argv, "--max_plat_size", max_splat_size);
   const float squared_distance_threshold = distance_threshold * distance_threshold;
   
   if (point_normal_cloud_path.empty() || mesh_path.empty() || output_path.empty()) {
@@ -148,7 +150,7 @@ int main(int argc, char** argv) {
     CHECK_EQ(search_tree->nearestKSearch(
         point_normal, kNearestNeighborCount + 1, indices, squared_distances),
         kNearestNeighborCount + 1);
-    float splat_radius = sqrtf(squared_distances[kNearestNeighborCount]);
+    float splat_radius = std::min(sqrtf(squared_distances[kNearestNeighborCount]), max_splat_size);
     
     // Find (random) right and up vectors corresponding to the normal.
     Eigen::Vector3f right = point_normal.getNormalVector3fMap().unitOrthogonal();

@@ -55,6 +55,8 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "-o", ply_output_path);
   int neighbor_count = 8;
   pcl::console::parse_argument(argc, argv, "--neighbor_count", neighbor_count);
+  float neighbor_radius = -1;
+  pcl::console::parse_argument(argc, argv, "--neighbor_radius", neighbor_radius);
   
   if (meshlab_project_input_path.empty() || ply_output_path.empty()) {
     std::cout << "Please provide input paths." << std::endl;
@@ -175,7 +177,12 @@ int main(int argc, char** argv) {
     normal_estimation.setInputCloud(global_scan_cloud);
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>());
     normal_estimation.setSearchMethod(tree);
-    normal_estimation.setKSearch(neighbor_count);
+    if(neighbor_radius > 0){
+      normal_estimation.setRadiusSearch(neighbor_radius);
+    }else{
+      normal_estimation.setKSearch(neighbor_count);
+    }
+    
     // normal_estimation.setSearchSurface(point_cloud);
     normal_estimation.setViewPoint(
         scan_info.global_T_mesh.translation().x(),
