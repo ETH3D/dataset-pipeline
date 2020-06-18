@@ -32,6 +32,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <pcl/console/parse.h>
 #include <pcl/io/ply_io.h>
+#include <zlib.h>
 
 #include "io/colmap_model.h"
 #include "opt/image.h"
@@ -85,6 +86,7 @@ void CreateGroundTruthForImage(
     bool write_depth_maps,
     bool write_occlusion_depth,
     bool write_scan_renderings,
+    bool compress_depth_maps,
     int scan_point_radius,
     const Camera& highest_resolution_camera,
     const opt::Intrinsics& intrinsics,
@@ -195,9 +197,16 @@ void CreateGroundTruthForImage(
         (boost::filesystem::path(output_ground_truth_depth_folder_path) /
         image_path.filename()).string();
     CHECK(gt_depth_map.isContinuous());
-    FILE* ground_truth_depth_file = fopen(ground_truth_depth_file_path.c_str(), "wb");
-    fwrite(gt_depth_map.data, sizeof(float), gt_depth_map.rows * gt_depth_map.cols, ground_truth_depth_file);
-    fclose(ground_truth_depth_file);
+    if (compress_depth_maps){
+      ground_truth_depth_file_path += ".gz";
+      gzFile ground_truth_depth_file = gzopen(ground_truth_depth_file_path.c_str(), "w8b");
+      gzwrite(ground_truth_depth_file, gt_depth_map.data, sizeof(float) * gt_depth_map.rows * gt_depth_map.cols);
+      gzclose(ground_truth_depth_file);
+    }else{
+      FILE* ground_truth_depth_file = fopen(ground_truth_depth_file_path.c_str(), "wb");
+      fwrite(gt_depth_map.data, sizeof(float), gt_depth_map.rows * gt_depth_map.cols, ground_truth_depth_file);
+      fclose(ground_truth_depth_file);
+    }
   }
 }
 
@@ -241,6 +250,8 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "--write_occlusion_depth", write_occlusion_depth);
   bool write_scan_renderings = false;
   pcl::console::parse_argument(argc, argv, "--write_scan_renderings", write_scan_renderings);
+  bool compress_depth_maps = false;
+  pcl::console::parse_argument(argc, argv, "--compress_depth_maps", compress_depth_maps);
   
   opt::GlobalParameters().SetFromArguments(argc, argv);
   
@@ -424,6 +435,7 @@ int main(int argc, char** argv) {
               write_depth_maps,
               write_occlusion_depth,
               write_scan_renderings,
+              compress_depth_maps,
               scan_point_radius,
               _highest_resolution_camera,
               intrinsics,
