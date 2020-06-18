@@ -233,8 +233,8 @@ TEST(Renderer, PixelAccuracy_Polynomial) {
 }
 
 TEST(Renderer, PixelAccuracy_Radial) {
-  camera::RadialCamera radial_camera(kImageWidth, kImageHeight, kFX,
-                                             kFY, kCX, kCY, kK1, -kK2);
+  camera::RadialCamera radial_camera(kImageWidth, kImageHeight,
+                                     kFX, kCX, kCY, kK1, -kK2);
   TestRendererPixelAccuracy(radial_camera);
 }
 
@@ -245,14 +245,14 @@ TEST(Renderer, PixelAccuracy_SimpleRadial) {
 }
 
 TEST(Renderer, PixelAccuracy_RadialFisheye) {
-  camera::RadialFisheyeCamera radial_fisheye_camera(kImageWidth, kImageHeight, kFX,
-                                             kFY, kCX, kCY, 0.221184, 0.128597);
+  camera::RadialFisheyeCamera radial_fisheye_camera(kImageWidth, kImageHeight,
+                                             kFX, kCX, kCY, 0.221184, 0.128597);
   TestRendererPixelAccuracy(radial_fisheye_camera);
 }
 
 TEST(Renderer, PixelAccuracy_SimpleRadialFisheye) {
   camera::SimpleRadialFisheyeCamera simple_radial_fisheye_camera(kImageWidth, kImageHeight,
-                                                          kFX, kCX, kCY, 0.221184);
+                                                          0.5*kFX, kCX, kCY, kK1);
   TestRendererPixelAccuracy(simple_radial_fisheye_camera);
 }
 
