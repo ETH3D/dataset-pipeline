@@ -876,10 +876,14 @@ void MainWindow::TransferLabels(
   LOG(INFO) << "Label transfer: compute occlusion images ...";
   cv::Mat_<float> source_occlusion_image =
       problem_->occlusion_geometry().RenderDepthMap(
-          source_intrinsics, *source_image, source_intrinsics.min_image_scale);
+          source_intrinsics, *source_image, source_intrinsics.min_image_scale,
+          opt::GlobalParameters().min_occlusion_depth,
+          opt::GlobalParameters().max_occlusion_depth);
   cv::Mat_<float> target_occlusion_image =
       problem_->occlusion_geometry().RenderDepthMap(
-          target_intrinsics, *target_image, target_intrinsics.min_image_scale);
+          target_intrinsics, *target_image, target_intrinsics.min_image_scale,
+          opt::GlobalParameters().min_occlusion_depth,
+          opt::GlobalParameters().max_occlusion_depth);
   
   LOG(INFO) << "Label transfer: project points ...";
   Eigen::Matrix3f source_R_global = source_image->image_T_global.rotationMatrix();

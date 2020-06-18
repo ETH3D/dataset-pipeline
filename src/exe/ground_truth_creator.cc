@@ -51,7 +51,9 @@ void AccumulateScanObservationsForImage(
     const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>& colored_scans,
     std::vector<std::vector<int>>* observation_counts) {
   cv::Mat_<float> occlusion_image = problem.occlusion_geometry().RenderDepthMap(
-      intrinsics, image, intrinsics.min_image_scale);
+      intrinsics, image, intrinsics.min_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
   std::string image_mask_path = image.GetImageMaskPath();
   cv::Mat_<uint8_t> mask;
   if (boost::filesystem::exists(image_mask_path)) {
