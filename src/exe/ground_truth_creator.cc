@@ -405,6 +405,7 @@ int main(int argc, char** argv) {
         boost::filesystem::path("points")).string();
     boost::filesystem::create_directories(output_points_folder_path);
     io::MeshLabMeshInfoVector out_info_vector = scan_infos;
+    #pragma omp parallel for
     for (size_t scan_index = 0; scan_index < scan_infos.size(); ++ scan_index) {
       const io::MeshLabProjectMeshInfo& scan_info = scan_infos[scan_index];
       const std::vector<int>& scan_observation_counts = observation_counts[scan_index];
@@ -452,7 +453,9 @@ int main(int argc, char** argv) {
     if(write_scan_renderings)
       LOG(INFO) << "Writing scan renderings ...";
     int current_image = 0;
+    #pragma omp parallel for
     for (std::size_t i = 0; i< images_nb; ++i){
+      #pragma omp critical
       std::cout << "Image [" << ++current_image << "/" << images_nb << "]\r" << std::flush;
       const opt::Image& image = problem.image(image_ids[i]);
       const opt::Intrinsics& intrinsics = problem.intrinsics(image.intrinsics_id);

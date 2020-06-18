@@ -187,8 +187,6 @@ cv::Mat_<float> OcclusionGeometry::RenderDepthMap(
     float max_depth,
     bool mask_occlusion_boundaries) const {
   constexpr bool kDebugShowDepthMaps = false;
-  
-  std::lock_guard<std::mutex> lock(mutable_mutex_);
   const camera::CameraBase& image_scale_camera =
       *intrinsics.model(image_scale);
   
@@ -205,44 +203,45 @@ cv::Mat_<float> OcclusionGeometry::RenderDepthMap(
     return depth_map;
   } else if (!meshes_.empty()) {
     // Render meshes.
-    opengl::OpenGLContext old_opengl_context =
-        opengl::SwitchOpenGLContext(opengl_context_);
-    
-    // If necessary, (re-)allocate depth map renderer.
-    if (!program_storage_) {
-      program_storage_.reset(new opengl::RendererProgramStorage());
-    }
-    if (!depthmap_renderer_ ||
-        depthmap_renderer_->max_width() < image_scale_camera.width() ||
-        depthmap_renderer_->max_height() < image_scale_camera.height()) {
-      depthmap_renderer_.reset(
-          new opengl::Renderer(false, true, image_scale_camera.width(), image_scale_camera.height(), program_storage_));
-    }
-    
-    // Start the rendering.
-    depthmap_renderer_->BeginRendering(image.image_T_global, image_scale_camera,
-                                       min_depth, max_depth);
-    for (const std::shared_ptr<opengl::Mesh>& mesh : meshes_) {
-      depthmap_renderer_->RenderTriangleList(mesh->vertex_buffer(),
-                                             mesh->index_buffer(),
-                                             mesh->index_count());
-    }
-    depthmap_renderer_->EndRendering();
-    
-    // Wait for and download result.
     cv::Mat_<float> depth_map(image_scale_camera.height(),
-                              image_scale_camera.width());
-    depthmap_renderer_->DownloadDepthResult(
-        depth_map.cols, depth_map.rows, reinterpret_cast<float*>(depth_map.data));
-    
-    opengl::SwitchOpenGLContext(old_opengl_context);
+                                image_scale_camera.width());
+    #pragma omp critical
+    {
+      opengl::OpenGLContext old_opengl_context =
+          opengl::SwitchOpenGLContext(opengl_context_);
+
+      // If necessary, (re-)allocate depth map renderer.
+      if (!program_storage_) {
+        program_storage_.reset(new opengl::RendererProgramStorage());
+      }
+      if (!depthmap_renderer_ ||
+          depthmap_renderer_->max_width() < image_scale_camera.width() ||
+          depthmap_renderer_->max_height() < image_scale_camera.height()) {
+        depthmap_renderer_.reset(
+            new opengl::Renderer(false, true, image_scale_camera.width(), image_scale_camera.height(), program_storage_));
+      }
+      // Start the rendering.
+      depthmap_renderer_->BeginRendering(image.image_T_global, image_scale_camera,
+                                         min_depth, max_depth);
+      for (const std::shared_ptr<opengl::Mesh>& mesh : meshes_) {
+        depthmap_renderer_->RenderTriangleList(mesh->vertex_buffer(),
+                                               mesh->index_buffer(),
+                                               mesh->index_count());
+      }
+      depthmap_renderer_->EndRendering();
+
+      // Wait for and download result.
+      depthmap_renderer_->DownloadDepthResult(
+          depth_map.cols, depth_map.rows, reinterpret_cast<float*>(depth_map.data));
+
+      opengl::SwitchOpenGLContext(old_opengl_context);
+    }
     
     // Debug: show depth map.
     if (kDebugShowDepthMaps) {
       cv::imshow("Rendered depth image without occlusion masking", depth_map / 8.f);
       cv::waitKey(0);
     }
-    
     if (mask_occlusion_boundaries) {
       // Remove background pixels close to occlusion boundaries. This is because
       // occlusion boundary locations are assumed to be unreliable in the
@@ -295,8 +294,10 @@ void OcclusionGeometry::MaskOutOcclusionBoundaries(
     const std::vector<EdgeWithFaces>& edges_with_faces = edges_with_face_normals->edges_with_faces;
     const pcl::PointCloud<pcl::PointXYZ>& vertices = *edges_with_face_normals->vertices;
     const Eigen::Matrix<float, 3, Eigen::Dynamic>& face_normals = edges_with_face_normals->face_normals;
-    
-    for (std::size_t i = 0, size = edges_with_faces.size(); i < size; ++ i) {
+
+    std::size_t size = edges_with_faces.size();
+    #pragma omp parallel for
+    for (std::size_t i = 0; i < size; ++ i) {
       const EdgeWithFaces& edge = edges_with_faces[i];
       const Eigen::Vector3f endpoint1 = vertices.at(edge.vertex_index1).getVector3fMap();
       const Eigen::Vector3f endpoint2 = vertices.at(edge.vertex_index2).getVector3fMap();
