@@ -59,6 +59,8 @@ struct Parameters {
     occlusion_depth_threshold = 0.01f;
     min_occlusion_depth = 0.05f;
     max_occlusion_depth = 100.f;
+
+    splat_radius = 0.03f; //3cm
     
     min_radius_bias = 1.05f;
     merge_distance_factor = 4.0f;
@@ -91,6 +93,8 @@ struct Parameters {
     pcl::console::parse_argument(argc, argv, "--occlusion_depth_threshold", occlusion_depth_threshold);
     pcl::console::parse_argument(argc, argv, "--max_occlusion_depth", max_occlusion_depth);
     pcl::console::parse_argument(argc, argv, "--min_occlusion_depth", min_occlusion_depth);
+
+    pcl::console::parse_argument(argc, argv, "--splat_radius", splat_radius);
     
     pcl::console::parse_argument(argc, argv, "--min_radius_bias", min_radius_bias);
     pcl::console::parse_argument(argc, argv, "--merge_distance_factor", merge_distance_factor);
@@ -114,6 +118,7 @@ struct Parameters {
     stream << "occlusion_depth_threshold " << occlusion_depth_threshold << std::endl;
     stream << "max_occlusion_depth" << max_occlusion_depth << std::endl;
     stream << "min_occlusion_depth" << min_occlusion_depth << std::endl;
+    stream << "splat_radius" << splat_radius << std::endl;
     stream << "min_radius_bias " << min_radius_bias << std::endl;
     stream << "merge_distance_factor " << merge_distance_factor << std::endl;
   }
@@ -190,6 +195,9 @@ struct Parameters {
   float min_occlusion_depth;
   // Max occlusion depth. Everything further than this will appear occluded
   float max_occlusion_depth;
+
+  // Radius of splats, used for depth renderings, and occlusion boundaries, in meters
+  float splat_radius;
   
   
   // ### For multi-scale point cloud ###
