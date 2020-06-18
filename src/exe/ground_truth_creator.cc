@@ -31,6 +31,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <pcl/console/parse.h>
+#include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
 #include <zlib.h>
 
@@ -337,7 +338,7 @@ int main(int argc, char** argv) {
     // Correct problem state (camera poses).
     for (auto& id_and_image : *problem.images_mutable()) {
       opt::Image* image = &id_and_image.second;
-      image->global_T_image = first_scan_up_transformation * image->global_T_image;
+      image->global_T_image = Sophus::SE3f(first_scan_up_transformation.matrix() * image->global_T_image.matrix());
       image->image_T_global = image->global_T_image.inverse();
     }
   }

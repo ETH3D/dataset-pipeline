@@ -37,6 +37,8 @@
 
 #include <boost/functional/hash.hpp>
 
+#include <sophus/sim3.hpp>
+
 #include "base/util.h"
 #include "opengl/renderer.h"
 #include "opengl/mesh.h"

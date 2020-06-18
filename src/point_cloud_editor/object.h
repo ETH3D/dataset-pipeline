@@ -35,7 +35,7 @@
 #include <cork.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
-#include <sophus/se3.hpp>
+#include <sophus/sim3.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/PolygonMesh.h>
@@ -137,7 +137,7 @@ struct Object {
   bool is_modified;
   
   // Transformation from the object frame to the global frame.
-  Sophus::SE3f global_T_object;
+  Sophus::Sim3f global_T_object;
   
   // Vertex and color data in CPU memory.
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;

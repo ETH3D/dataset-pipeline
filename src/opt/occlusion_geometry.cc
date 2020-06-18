@@ -415,7 +415,7 @@ cv::Mat_<float> OcclusionGeometry::_RenderDepthMapWithSplatsCPU(
     }
   }
   
-  Eigen::Matrix3f image_R_global = image.image_T_global.so3().matrix();
+  Eigen::Matrix3f image_R_global = image.image_T_global.rotationMatrix();
   Eigen::Vector3f image_T_global = image.image_T_global.translation();
   
   // Render points as splats to approximately determine visibility.

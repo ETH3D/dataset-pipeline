@@ -745,6 +745,12 @@ Renderer::~Renderer() {
 void Renderer::BeginRendering(
     const Sophus::SE3f& transformation,
     const camera::CameraBase& camera, float min_depth, float max_depth) {
+  Renderer::BeginRendering(Sophus::Sim3f(transformation.matrix()), camera, min_depth, max_depth);
+}
+
+void Renderer::BeginRendering(
+    const Sophus::Sim3f& transformation,
+    const camera::CameraBase& camera, float min_depth, float max_depth) {
   // Get or create the shader program for this camera.
   RendererProgramBasePtr program;
   if (!render_color_ && render_depth_) {
@@ -907,6 +913,12 @@ void Renderer::CreateFrameBufferObject() {
 void Renderer::SetupProjection(
     const Sophus::SE3f& transformation, const camera::CameraBase& camera,
     float min_depth, float max_depth) {
+  Renderer::SetupProjection(Sophus::Sim3f(transformation.matrix()), camera, min_depth, max_depth);
+}
+
+void Renderer::SetupProjection(
+    const Sophus::Sim3f& transformation, const camera::CameraBase& camera,
+    float min_depth, float max_depth) {
   CHECK_GT(max_depth, min_depth);
   CHECK_GT(min_depth, 0);
 
@@ -941,7 +953,7 @@ void Renderer::SetupProjection(
   CHECK_OPENGL_NO_ERROR();
 
   // Model-view matrix construction.
-  Eigen::Matrix3f rotation = transformation.so3().matrix();
+  Eigen::Matrix3f rotation = transformation.rxso3().matrix();
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       matrix[i + j * 4] = rotation(i, j);

@@ -140,7 +140,7 @@ bool CSGTool::mouseMoveEvent(QMouseEvent* event) {
     Eigen::Vector3f look_direction = (render_widget_->camera_look_at() - render_widget_->camera_position()).normalized();
     Eigen::Vector3f rotation_axis = object_.global_T_object.rotationMatrix().transpose() * look_direction;
     Eigen::AngleAxisf rotation(rotation_angle, rotation_axis);
-    object_.global_T_object = object_.global_T_object * Sophus::SE3f(rotation.toRotationMatrix(), Eigen::Vector3f(0, 0, 0));
+    object_.global_T_object = object_.global_T_object * Sophus::Sim3f(Sophus::RxSO3f(rotation.toRotationMatrix()), Eigen::Vector3f(0, 0, 0));
     
     render_widget_->update(render_widget_->rect());
   } else if (move_mode_ == MoveMode::kScale) {

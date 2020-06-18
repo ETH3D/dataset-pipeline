@@ -32,6 +32,7 @@
 
 #include <boost/filesystem.hpp>
 #include <sophus/se3.hpp>
+#include <sophus/sim3.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -50,7 +51,7 @@ struct MeshLabProjectMeshInfo {
   std::string filename;
   
   // Mesh-to-global transformation.
-  Sophus::SE3f global_T_mesh;
+  Sophus::Sim3f global_T_mesh;
   
   // Full transformation matrix (may not be a SE3 transformation after all).
   Eigen::Matrix4f global_T_mesh_full;

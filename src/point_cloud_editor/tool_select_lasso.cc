@@ -124,11 +124,11 @@ bool LassoSelectionTool::applySelection(Qt::KeyboardModifiers modifiers) {
     // Set new selection.
     int current_object_index = render_widget_->current_object_index();
     const Object& object_struct = scene->object(current_object_index);
-    Sophus::SE3f camera_RT_object =
-        render_widget_->camera_T_world() *
-        object_struct.global_T_object;
-    Eigen::Matrix3f camera_R_object = camera_RT_object.so3().matrix();
-    Eigen::Vector3f camera_T_object = camera_RT_object.translation();
+    Sophus::Sim3f camera_RsT_object(
+        render_widget_->camera_T_world().matrix() *
+        object_struct.global_T_object.matrix());
+    Eigen::Matrix3f camera_Rs_object = camera_RsT_object.rxso3().matrix();
+    Eigen::Vector3f camera_T_object = camera_RsT_object.translation();
     const camera::PinholeCamera& render_camera = render_widget_->render_camera();
     float max_depth = render_widget_->max_depth();
     float min_depth = render_widget_->min_depth();
@@ -150,7 +150,7 @@ bool LassoSelectionTool::applySelection(Qt::KeyboardModifiers modifiers) {
                                render_camera.height(), renderer_program_storage));
       
       // Render image.
-      renderer->BeginRendering(camera_RT_object, render_camera, min_depth, max_depth);
+      renderer->BeginRendering(camera_RsT_object, render_camera, min_depth, max_depth);
       renderer->RenderTriangleList(object_struct.vertex_buffer,
                                    object_struct.index_buffer,
                                    3 * object_struct.faces->size());
@@ -166,7 +166,7 @@ bool LassoSelectionTool::applySelection(Qt::KeyboardModifiers modifiers) {
     std::unordered_set<std::size_t> indices_to_remove;
     for (std::size_t point_index = 0, size = cloud.size(); point_index < size; ++ point_index) {
       const Eigen::Vector3f cloud_point = cloud.at(point_index).getVector3fMap();
-      Eigen::Vector3f camera_point = camera_R_object * cloud_point + camera_T_object;
+      Eigen::Vector3f camera_point = camera_Rs_object * cloud_point + camera_T_object;
       if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
         Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
             camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));
