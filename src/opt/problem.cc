@@ -146,7 +146,10 @@ bool Problem::LoadMultiResPointCloud(const std::string& save_directory_path, std
     std::vector<std::size_t>* neighbor_point_indices_at_scale =
         &neighbor_point_indices_[point_scale];
     neighbor_point_indices_at_scale->resize(GlobalParameters().point_neighbor_count * points_[point_scale]->size());
-    if (fread(neighbor_point_indices_at_scale->data(), sizeof(std::size_t), neighbor_point_indices_at_scale->size(), neighbor_file) < neighbor_point_indices_at_scale->size()) {
+    if (fread(neighbor_point_indices_at_scale->data(),
+              sizeof(std::size_t),
+              neighbor_point_indices_at_scale->size(),
+              neighbor_file) < neighbor_point_indices_at_scale->size()) {
       LOG(FATAL) << "Unexpected EOF in " << neighbor_file_path;
     }
   }
@@ -472,7 +475,7 @@ RigImages* Problem::AddRigImages() {
   return new_rig_images;
 }
 
-void Problem::InitializeImages(const std::string& image_base_path) {
+void Problem::InitializeImages() {
   // Determine the number of image pyramid levels.
   image_scale_count_ = 1;
   for (Intrinsics& intrinsics : intrinsics_list_) {
@@ -488,9 +491,11 @@ void Problem::InitializeImages(const std::string& image_base_path) {
     intrinsics.AllocateModelPyramid(image_scale_count_);
     intrinsics.BuildModelPyramid();
   }
-  
+}
+
+void Problem::LoadImages(const std::string& image_base_path) {  
   // Read images and create multi-scale pyramids.
-  LOG(INFO) << "InitializeImages(): Reading image data ...";
+  LOG(INFO) << "LoadImages(): Reading image data ...";
   for (auto& id_and_image : images_) {
     Image& image = id_and_image.second;
     image.LoadImageData(image_scale_count_, intrinsics_mutable(image.intrinsics_id), image_base_path);
@@ -506,69 +511,74 @@ void Problem::SetScanGeometryAndInitialize(
   constexpr bool kDebugWriteMultiResPointCloudScales = false;
   
   // Initialize image scales and load images
-  InitializeImages(image_base_path);
+  InitializeImages();
+  LoadImages(image_base_path);
   
   // Initialize scan geometry. If a multires point cloud was saved earlier, load
   // it instead of recomputing it.
   std::vector<std::vector<float>> multi_res_colors;
-  if (cache_multi_res_point_cloud) {
-    if (LoadMultiResPointCloud(multi_res_point_cloud_directory_path, &multi_res_colors)) {
-      LOG(INFO) << "SetScanGeometryAndInitialize(): Loaded existing multi-res point cloud.";
+  if(!multi_res_point_cloud_directory_path.empty()){
+    if (cache_multi_res_point_cloud) {
+      if (LoadMultiResPointCloud(multi_res_point_cloud_directory_path, &multi_res_colors)) {
+        LOG(INFO) << "SetScanGeometryAndInitialize(): Loaded existing multi-res point cloud.";
+      } else {
+        ComputeMultiResPointCloud(scans, visibility_estimator, &multi_res_colors);
+        
+        // Save multires point cloud for faster loading next time (and to keep it
+        // constant while camera poses change).
+        SaveMultiResPointCloud(multi_res_point_cloud_directory_path, multi_res_colors, false);
+      }
     } else {
       ComputeMultiResPointCloud(scans, visibility_estimator, &multi_res_colors);
-      
-      // Save multires point cloud for faster loading next time (and to keep it
-      // constant while camera poses change).
-      SaveMultiResPointCloud(multi_res_point_cloud_directory_path, multi_res_colors, false);
     }
-  } else {
-    ComputeMultiResPointCloud(scans, visibility_estimator, &multi_res_colors);
-  }
   
-  // Allocate space for descriptors and observation counts.
-  LOG(INFO) << "SetScanGeometryAndInitialize(): Allocate space for descriptors and observation counts ...";
-  fixed_descriptors_.resize(point_radii_.size());
-  variable_descriptors_.resize(point_radii_.size());
-  observation_counts_.resize(point_radii_.size());
-  for (int point_scale = 0;
-       point_scale < static_cast<int>(point_radii_.size());
-       ++ point_scale) {
-    fixed_descriptors_[point_scale].resize(neighbor_point_indices_[point_scale].size());
-    variable_descriptors_[point_scale].resize(neighbor_point_indices_[point_scale].size());
-    observation_counts_[point_scale].resize(points_[point_scale]->size());
-  }
-  
-  // If using fixed colors, compute the fixed descriptors from the point colors.
-  bool use_fixed_scan_colors = GlobalParameters().fixed_residuals_weight > 0;
-  if (use_fixed_scan_colors) {
-    LOG(INFO) << "SetScanGeometryAndInitialize(): Compute fixed point descriptors from colors ...";
+    // Allocate space for descriptors and observation counts.
+    LOG(INFO) << "SetScanGeometryAndInitialize(): Allocate space for descriptors and observation counts ...";
+    fixed_descriptors_.resize(point_radii_.size());
+    variable_descriptors_.resize(point_radii_.size());
+    observation_counts_.resize(point_radii_.size());
     for (int point_scale = 0;
-       point_scale < static_cast<int>(point_radii_.size());
-       ++ point_scale) {
-      std::vector<float>& scale_colors = multi_res_colors[point_scale];
-      std::vector<float>& scale_descriptors = fixed_descriptors_[point_scale];
-      std::vector<int>& scale_observation_count = observation_counts_[point_scale];
-      for (std::size_t point_index = 0; point_index < scale_colors.size(); ++ point_index) {
-        // Compute descriptors.
-        const float point_color = scale_colors[point_index];
-        for (int k = 0; k < GlobalParameters().point_neighbor_count; ++ k) {
-          const float neighbor_color =
-              scale_colors[neighbor_point_index(point_scale, point_index, k)];
-          scale_descriptors[neighbor_index(point_index, k)]
-              = ComputeDescriptor(point_color, neighbor_color);
+         point_scale < static_cast<int>(point_radii_.size());
+         ++ point_scale) {
+      fixed_descriptors_[point_scale].resize(neighbor_point_indices_[point_scale].size());
+      variable_descriptors_[point_scale].resize(neighbor_point_indices_[point_scale].size());
+      observation_counts_[point_scale].resize(points_[point_scale]->size());
+    }
+    
+    // If using fixed colors, compute the fixed descriptors from the point colors.
+    bool use_fixed_scan_colors = GlobalParameters().fixed_residuals_weight > 0;
+    if (use_fixed_scan_colors) {
+      LOG(INFO) << "SetScanGeometryAndInitialize(): Compute fixed point descriptors from colors ...";
+      for (int point_scale = 0;
+         point_scale < static_cast<int>(point_radii_.size());
+         ++ point_scale) {
+        std::vector<float>& scale_colors = multi_res_colors[point_scale];
+        std::vector<float>& scale_descriptors = fixed_descriptors_[point_scale];
+        std::vector<int>& scale_observation_count = observation_counts_[point_scale];
+        for (std::size_t point_index = 0; point_index < scale_colors.size(); ++ point_index) {
+          // Compute descriptors.
+          const float point_color = scale_colors[point_index];
+          for (int k = 0; k < GlobalParameters().point_neighbor_count; ++ k) {
+            const float neighbor_color =
+                scale_colors[neighbor_point_index(point_scale, point_index, k)];
+            scale_descriptors[neighbor_index(point_index, k)]
+                = ComputeDescriptor(point_color, neighbor_color);
+          }
+          
+          // Set observation count to make the point valid.
+          // TODO: Why is this necessary, can it be set to a sane value?
+          scale_observation_count[point_index] = 99999;
         }
-        
-        // Set observation count to make the point valid.
-        // TODO: Why is this necessary, can it be set to a sane value?
-        scale_observation_count[point_index] = 99999;
       }
     }
-  }
   
-  if (kDebugWriteMultiResPointCloudScales) {
-    DebugWriteMultiResPointCloudScales(
-        multi_res_colors,
-        multi_res_point_cloud_directory_path);
+    if (kDebugWriteMultiResPointCloudScales) {
+      DebugWriteMultiResPointCloudScales(
+          multi_res_colors,
+          multi_res_point_cloud_directory_path);
+    }
+  }else{
+    point_radii_.resize(0);
   }
 }
 

@@ -50,7 +50,11 @@ void AccumulateScanObservationsForImage(
     std::vector<std::vector<int>>* observation_counts) {
   cv::Mat_<float> occlusion_image = problem.occlusion_geometry().RenderDepthMap(
       intrinsics, image, intrinsics.min_image_scale);
-  const cv::Mat_<uint8_t>& mask = image.mask_[0];
+  std::string image_mask_path = image.GetImageMaskPath();
+  cv::Mat_<uint8_t> mask;
+  if (boost::filesystem::exists(image_mask_path)) {
+    mask = cv::imread(image_mask_path, cv::IMREAD_ANYDEPTH);
+  }
   
   for (size_t scan_index = 0; scan_index < colored_scans.size(); ++ scan_index) {
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan = colored_scans[scan_index];
@@ -115,28 +119,39 @@ void CreateGroundTruthForImage(
   
   // Render and save occlusion image.
   cv::Mat_<float> occlusion_image = problem.occlusion_geometry().RenderDepthMap(
-      intrinsics, image, intrinsics.min_image_scale);
+      intrinsics, image, intrinsics.min_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
   
   if (write_occlusion_depth) {
     std::string occlusion_depth_file_path =
         (boost::filesystem::path(output_occlusion_depth_folder_path) /
         image_path.filename()).string();
     CHECK(occlusion_image.isContinuous());
-    FILE* occlusion_depth_file = fopen(occlusion_depth_file_path.c_str(), "wb");
-    fwrite(occlusion_image.data, sizeof(float), occlusion_image.rows * occlusion_image.cols, occlusion_depth_file);
-    fclose(occlusion_depth_file);
+    if (compress_depth_maps){
+      occlusion_depth_file_path += ".gz";
+      gzFile occlusion_depth_file = gzopen(occlusion_depth_file_path.c_str(), "w8b");
+      gzwrite(occlusion_depth_file, occlusion_image.data, sizeof(float) * occlusion_image.rows * occlusion_image.cols);
+      gzclose(occlusion_depth_file);
+    }else{
+      FILE* occlusion_depth_file = fopen(occlusion_depth_file_path.c_str(), "wb");
+      fwrite(occlusion_image.data, sizeof(float), occlusion_image.rows * occlusion_image.cols, occlusion_depth_file);
+      fclose(occlusion_depth_file);
+    }
   }
   
   // Initialize scan rendering with image.
   cv::Mat_<cv::Vec3b> scan_rendering = cv::imread(image.file_path);
   
   cv::Mat_<float> gt_depth_map(occlusion_image.rows, occlusion_image.cols, std::numeric_limits<float>::infinity());
-  
-  const cv::Mat_<uint8_t>& mask = image.mask_[0];
+  std::string image_mask_path = image.GetImageMaskPath();
+  cv::Mat_<uint8_t> mask;
+  if (boost::filesystem::exists(image_mask_path)) {
+    mask = cv::imread(image_mask_path, cv::IMREAD_ANYDEPTH);
+  }
   for (size_t scan_index = 0; scan_index < colored_scans.size(); ++ scan_index) {
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan = colored_scans[scan_index];
     const std::vector<int>& scan_observation_counts = observation_counts.at(scan_index);
-    
     for (size_t scan_point_index = 0; scan_point_index < scan->size(); ++ scan_point_index) {
       if (scan_observation_counts[scan_point_index] < 2) {
         continue;
@@ -313,7 +328,7 @@ int main(int argc, char** argv) {
     }
   }
   
-  problem.InitializeImages(image_base_path);
+  problem.InitializeImages();
   
   boost::filesystem::create_directories(output_folder_path);
   
