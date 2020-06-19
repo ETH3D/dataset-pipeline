@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "--output_path", output_path);
   float distance_threshold = 0.02f;
   pcl::console::parse_argument(argc, argv, "--distance_threshold", distance_threshold);
-  float max_splat_size = std::numeric_limits<float>::infinity();;
+  float max_splat_size = std::numeric_limits<float>::infinity();
   pcl::console::parse_argument(argc, argv, "--max_plat_size", max_splat_size);
   const float squared_distance_threshold = distance_threshold * distance_threshold;
   
@@ -138,9 +138,20 @@ int main(int argc, char** argv) {
   pcl::Vertices face;
   face.vertices.resize(3);
   std::size_t added_splat_count = 0;
-  for (std::size_t i = 0; i < point_normal_cloud->size(); ++ i) {
+  const std::size_t cloud_size = point_normal_cloud->size();
+  int current_point = 0;
+  #pragma omp parallel for
+  for (std::size_t i = 0; i < cloud_size; ++ i) {
     const pcl::PointNormal& point_normal = point_normal_cloud->at(i);
-    
+    #pragma omp critical
+    {
+      current_point ++;
+      if (current_point % 100 == 0){
+        float percentage = current_point > 0 ? 100 * added_splat_count / current_point : 0;
+        std::cout << "Analyzing point [" << current_point << "/" << cloud_size << "] "
+          "(" << added_splat_count << " added so far, i.e. " << percentage << "%)\r" << std::flush;
+      }
+    }
     if (std::isnan(point_normal.normal_x) || std::isnan(point_normal.normal_y) || std::isnan(point_normal.normal_z)) {
       continue;
     }
@@ -191,22 +202,25 @@ int main(int argc, char** argv) {
     
     // Add the splat to the mesh?
     if (add_splat) {
-      output_cloud->push_back(point_top_right);
-      output_cloud->push_back(point_bottom_right);
-      output_cloud->push_back(point_bottom_left);
-      output_cloud->push_back(point_top_left);
-      
-      face.vertices[0] = start_index + 2;
-      face.vertices[1] = start_index + 1;
-      face.vertices[2] = start_index + 0;
-      output_mesh.polygons.push_back(face);
-      
-      face.vertices[0] = start_index + 0;
-      face.vertices[1] = start_index + 3;
-      face.vertices[2] = start_index + 2;
-      output_mesh.polygons.push_back(face);
-      
-      ++ added_splat_count;
+      #pragma omp critical
+      {
+        output_cloud->push_back(point_top_right);
+        output_cloud->push_back(point_bottom_right);
+        output_cloud->push_back(point_bottom_left);
+        output_cloud->push_back(point_top_left);
+
+        face.vertices[0] = start_index + 2;
+        face.vertices[1] = start_index + 1;
+        face.vertices[2] = start_index + 0;
+        output_mesh.polygons.push_back(face);
+
+        face.vertices[0] = start_index + 0;
+        face.vertices[1] = start_index + 3;
+        face.vertices[2] = start_index + 2;
+        output_mesh.polygons.push_back(face);
+
+        ++ added_splat_count;
+      }
     }
   }
   
