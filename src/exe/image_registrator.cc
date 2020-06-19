@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "--scan_alignment_path", scan_alignment_path);
   
   std::string occlusion_mesh_path;
-  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_paths", occlusion_mesh_path);
+  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_path", occlusion_mesh_path);
 
   std::string occlusion_splats_path;
   pcl::console::parse_argument(argc, argv, "--occlusion_splats_path", occlusion_splats_path);
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
   }
   
   if (occlusion_mesh_path.empty() && occlusion_splats_path.empty()) {
-    LOG(WARNING) << "No occlusion meshes given, using splats.";
+    LOG(WARNING) << "No occlusion meshes given, using 2D splats.";
   }
   
   
