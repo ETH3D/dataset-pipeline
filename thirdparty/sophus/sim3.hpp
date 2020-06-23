@@ -1,976 +1,745 @@
-// This file is part of Sophus.
-//
-// Copyright 2012-2013 Hauke Strasdat
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to
-// deal in the Software without restriction, including without limitation the
-// rights  to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+/// @file
+/// Similarity group Sim(3) - scaling, rotation and translation in 3d.
 
 #ifndef SOPHUS_SIM3_HPP
 #define SOPHUS_SIM3_HPP
 
 #include "rxso3.hpp"
-
-////////////////////////////////////////////////////////////////////////////
-// Forward Declarations / typedefs
-////////////////////////////////////////////////////////////////////////////
+#include "sim_details.hpp"
 
 namespace Sophus {
-template<typename _Scalar, int _Options=0> class Sim3Group;
-typedef Sim3Group<double> Sim3 EIGEN_DEPRECATED;
-typedef Sim3Group<double> Sim3d; /**< double precision Sim3 */
-typedef Sim3Group<float> Sim3f;  /**< single precision Sim3 */
-typedef Matrix<double,7,1> Vector7d;
-typedef Matrix<double,7,7> Matrix7d;
-typedef Matrix<float,7,1> Vector7f;
-typedef Matrix<float,7,7> Matrix7f;
-}
-
-////////////////////////////////////////////////////////////////////////////
-// Eigen Traits (For querying derived types in CRTP hierarchy)
-////////////////////////////////////////////////////////////////////////////
+template <class Scalar_, int Options = 0>
+class Sim3;
+using Sim3d = Sim3<double>;
+using Sim3f = Sim3<float>;
+}  // namespace Sophus
 
 namespace Eigen {
 namespace internal {
 
-template<typename _Scalar, int _Options>
-struct traits<Sophus::Sim3Group<_Scalar,_Options> > {
-  typedef _Scalar Scalar;
-  typedef Matrix<Scalar,3,1> TranslationType;
-  typedef Sophus::RxSO3Group<Scalar> RxSO3Type;
+template <class Scalar_, int Options>
+struct traits<Sophus::Sim3<Scalar_, Options>> {
+  using Scalar = Scalar_;
+  using TranslationType = Sophus::Vector3<Scalar, Options>;
+  using RxSO3Type = Sophus::RxSO3<Scalar, Options>;
 };
 
-template<typename _Scalar, int _Options>
-struct traits<Map<Sophus::Sim3Group<_Scalar>, _Options> >
-    : traits<Sophus::Sim3Group<_Scalar, _Options> > {
-  typedef _Scalar Scalar;
-  typedef Map<Matrix<Scalar,3,1>,_Options> TranslationType;
-  typedef Map<Sophus::RxSO3Group<Scalar>,_Options> RxSO3Type;
+template <class Scalar_, int Options>
+struct traits<Map<Sophus::Sim3<Scalar_>, Options>>
+    : traits<Sophus::Sim3<Scalar_, Options>> {
+  using Scalar = Scalar_;
+  using TranslationType = Map<Sophus::Vector3<Scalar>, Options>;
+  using RxSO3Type = Map<Sophus::RxSO3<Scalar>, Options>;
 };
 
-template<typename _Scalar, int _Options>
-struct traits<Map<const Sophus::Sim3Group<_Scalar>, _Options> >
-    : traits<const Sophus::Sim3Group<_Scalar, _Options> > {
-  typedef _Scalar Scalar;
-  typedef Map<const Matrix<Scalar,3,1>,_Options> TranslationType;
-  typedef Map<const Sophus::RxSO3Group<Scalar>,_Options> RxSO3Type;
+template <class Scalar_, int Options>
+struct traits<Map<Sophus::Sim3<Scalar_> const, Options>>
+    : traits<Sophus::Sim3<Scalar_, Options> const> {
+  using Scalar = Scalar_;
+  using TranslationType = Map<Sophus::Vector3<Scalar> const, Options>;
+  using RxSO3Type = Map<Sophus::RxSO3<Scalar> const, Options>;
 };
-
-}
-}
+}  // namespace internal
+}  // namespace Eigen
 
 namespace Sophus {
-using namespace Eigen;
-using namespace std;
 
-/**
- * \brief Sim3 base type - implements Sim3 class but is storage agnostic
- *
- * [add more detailed description/tutorial]
- */
-template<typename Derived>
-class Sim3GroupBase {
-public:
-  /** \brief scalar type */
-  typedef typename internal::traits<Derived>::Scalar Scalar;
-  /** \brief translation reference type */
-  typedef typename internal::traits<Derived>::TranslationType &
-  TranslationReference;
-  /** \brief translation const reference type */
-  typedef const typename internal::traits<Derived>::TranslationType &
-  ConstTranslationReference;
-  /** \brief RxSO3 reference type */
-  typedef typename internal::traits<Derived>::RxSO3Type &
-  RxSO3Reference;
-  /** \brief RxSO3 const reference type */
-  typedef const typename internal::traits<Derived>::RxSO3Type &
-  ConstRxSO3Reference;
+/// Sim3 base type - implements Sim3 class but is storage agnostic.
+///
+/// Sim(3) is the group of rotations  and translation and scaling in 3d. It is
+/// the semi-direct product of R+xSO(3) and the 3d Euclidean vector space.  The
+/// class is represented using a composition of RxSO3  for scaling plus
+/// rotation and a 3-vector for translation.
+///
+/// Sim(3) is neither compact, nor a commutative group.
+///
+/// See RxSO3 for more details of the scaling + rotation representation in 3d.
+///
+template <class Derived>
+class Sim3Base {
+ public:
+  using Scalar = typename Eigen::internal::traits<Derived>::Scalar;
+  using TranslationType =
+      typename Eigen::internal::traits<Derived>::TranslationType;
+  using RxSO3Type = typename Eigen::internal::traits<Derived>::RxSO3Type;
+  using QuaternionType = typename RxSO3Type::QuaternionType;
 
+  /// Degrees of freedom of manifold, number of dimensions in tangent space
+  /// (three for translation, three for rotation and one for scaling).
+  static int constexpr DoF = 7;
+  /// Number of internal parameters used (4-tuple for quaternion, three for
+  /// translation).
+  static int constexpr num_parameters = 7;
+  /// Group transformations are 4x4 matrices.
+  static int constexpr N = 4;
+  using Transformation = Matrix<Scalar, N, N>;
+  using Point = Vector3<Scalar>;
+  using HomogeneousPoint = Vector4<Scalar>;
+  using Line = ParametrizedLine3<Scalar>;
+  using Tangent = Vector<Scalar, DoF>;
+  using Adjoint = Matrix<Scalar, DoF, DoF>;
 
-  /** \brief degree of freedom of group
-    *        (three for translation, three for rotation, one for scale) */
-  static const int DoF = 7;
-  /** \brief number of internal parameters used
-   *         (quaternion for rotation and scale + translation 3-vector) */
-  static const int num_parameters = 7;
-  /** \brief group transformations are NxN matrices */
-  static const int N = 4;
-  /** \brief group transfomation type */
-  typedef Matrix<Scalar,N,N> Transformation;
-  /** \brief point type */
-  typedef Matrix<Scalar,3,1> Point;
-  /** \brief tangent vector type */
-  typedef Matrix<Scalar,DoF,1> Tangent;
-  /** \brief adjoint transformation type */
-  typedef Matrix<Scalar,DoF,DoF> Adjoint;
+  /// For binary operations the return type is determined with the
+  /// ScalarBinaryOpTraits feature of Eigen. This allows mixing concrete and Map
+  /// types, as well as other compatible scalar types such as Ceres::Jet and
+  /// double scalars with Sim3 operations.
+  template <typename OtherDerived>
+  using ReturnScalar = typename Eigen::ScalarBinaryOpTraits<
+      Scalar, typename OtherDerived::Scalar>::ReturnType;
 
-  /**
-   * \brief Adjoint transformation
-   *
-   * This function return the adjoint transformation \f$ Ad \f$ of the
-   * group instance \f$ A \f$  such that for all \f$ x \f$
-   * it holds that \f$ \widehat{Ad_A\cdot x} = A\widehat{x}A^{-1} \f$
-   * with \f$\ \widehat{\cdot} \f$ being the hat()-operator.
-   */
-  inline
-  const Adjoint Adj() const {
-    const Matrix<Scalar,3,3> & R = rxso3().rotationMatrix();
+  template <typename OtherDerived>
+  using Sim3Product = Sim3<ReturnScalar<OtherDerived>>;
+
+  template <typename PointDerived>
+  using PointProduct = Vector3<ReturnScalar<PointDerived>>;
+
+  template <typename HPointDerived>
+  using HomogeneousPointProduct = Vector4<ReturnScalar<HPointDerived>>;
+
+  /// Adjoint transformation
+  ///
+  /// This function return the adjoint transformation ``Ad`` of the group
+  /// element ``A`` such that for all ``x`` it holds that
+  /// ``hat(Ad_A * x) = A * hat(x) A^{-1}``. See hat-operator below.
+  ///
+  SOPHUS_FUNC Adjoint Adj() const {
+    Matrix3<Scalar> const R = rxso3().rotationMatrix();
     Adjoint res;
     res.setZero();
-    res.block(0,0,3,3) = scale()*R;
-    res.block(0,3,3,3) = SO3Group<Scalar>::hat(translation())*R;
-    res.block(0,6,3,1) = -translation();
-    res.block(3,3,3,3) = R;
-    res(6,6) = 1;
+    res.template block<3, 3>(0, 0) = rxso3().matrix();
+    res.template block<3, 3>(0, 3) = SO3<Scalar>::hat(translation()) * R;
+    res.template block<3, 1>(0, 6) = -translation();
+
+    res.template block<3, 3>(3, 3) = R;
+
+    res(6, 6) = Scalar(1);
     return res;
   }
 
-  /**
-   * \returns copy of instance casted to NewScalarType
-   */
-  template<typename NewScalarType>
-  inline Sim3Group<NewScalarType> cast() const {
-    return
-        Sim3Group<NewScalarType>(rxso3().template cast<NewScalarType>(),
-                                 translation().template cast<NewScalarType>() );
+  /// Returns copy of instance casted to NewScalarType.
+  ///
+  template <class NewScalarType>
+  SOPHUS_FUNC Sim3<NewScalarType> cast() const {
+    return Sim3<NewScalarType>(rxso3().template cast<NewScalarType>(),
+                               translation().template cast<NewScalarType>());
   }
 
-  /**
-   * \brief In-place group multiplication
-   *
-   * Same as operator*=() for Sim3.
-   *
-   * \see operator*()
-   */
-  inline
-  void fastMultiply(const Sim3Group<Scalar>& other) {
-    translation() += (rxso3() * other.translation());
-    rxso3() *= other.rxso3();
+  /// Returns group inverse.
+  ///
+  SOPHUS_FUNC Sim3<Scalar> inverse() const {
+    RxSO3<Scalar> invR = rxso3().inverse();
+    return Sim3<Scalar>(invR, invR * (translation() * Scalar(-1)));
   }
 
-  /**
-   * \returns Group inverse of instance
-   */
-  inline
-  const Sim3Group<Scalar> inverse() const {
-    const RxSO3Group<Scalar> invR = rxso3().inverse();
-    return Sim3Group<Scalar>(invR, invR*(translation()
-                                         *static_cast<Scalar>(-1) ) );
+  /// Logarithmic map
+  ///
+  /// Computes the logarithm, the inverse of the group exponential which maps
+  /// element of the group (rigid body transformations) to elements of the
+  /// tangent space (twist).
+  ///
+  /// To be specific, this function computes ``vee(logmat(.))`` with
+  /// ``logmat(.)`` being the matrix logarithm and ``vee(.)`` the vee-operator
+  /// of Sim(3).
+  ///
+  SOPHUS_FUNC Tangent log() const {
+    // The derivation of the closed-form Sim(3) logarithm for is done
+    // analogously to the closed-form solution of the SE(3) logarithm, see
+    // J. Gallier, D. Xu, "Computing exponentials of skew symmetric matrices
+    // and logarithms of orthogonal matrices", IJRA 2002.
+    // https:///pdfs.semanticscholar.org/cfe3/e4b39de63c8cabd89bf3feff7f5449fc981d.pdf
+    // (Sec. 6., pp. 8)
+    Tangent res;
+    auto omega_sigma_and_theta = rxso3().logAndTheta();
+    Vector3<Scalar> const omega =
+        omega_sigma_and_theta.tangent.template head<3>();
+    Scalar sigma = omega_sigma_and_theta.tangent[3];
+    Matrix3<Scalar> const Omega = SO3<Scalar>::hat(omega);
+    Matrix3<Scalar> const W_inv = details::calcWInv<Scalar, 3>(
+        Omega, omega_sigma_and_theta.theta, sigma, scale());
+
+    res.segment(0, 3) = W_inv * translation();
+    res.segment(3, 3) = omega;
+    res[6] = sigma;
+    return res;
   }
 
-  /**
-   * \brief Logarithmic map
-   *
-   * \returns tangent space representation
-   *          (translational part and rotation vector) of instance
-   *
-   * \see  log().
-   */
-  inline
-  const Tangent log() const {
-    return log(*this);
-  }
-
-  /**
-   * \returns 4x4 matrix representation of instance
-   */
-  inline
-  const Transformation matrix() const {
+  /// Returns 4x4 matrix representation of the instance.
+  ///
+  /// It has the following form:
+  ///
+  ///     | s*R t |
+  ///     |  o  1 |
+  ///
+  /// where ``R`` is a 3x3 rotation matrix, ``s`` a scale factor, ``t`` a
+  /// translation 3-vector and ``o`` a 3-column vector of zeros.
+  ///
+  SOPHUS_FUNC Transformation matrix() const {
     Transformation homogenious_matrix;
-    homogenious_matrix.setIdentity();
-    homogenious_matrix.block(0,0,3,3) = rxso3().matrix();
-    homogenious_matrix.col(3).head(3) = translation();
+    homogenious_matrix.template topLeftCorner<3, 4>() = matrix3x4();
+    homogenious_matrix.row(3) =
+        Matrix<Scalar, 4, 1>(Scalar(0), Scalar(0), Scalar(0), Scalar(1));
     return homogenious_matrix;
   }
 
-  /**
-   * \returns 3x4 matrix representation of instance
-   *
-   * It returns the three first row of matrix().
-   */
-  inline
-  const Matrix<Scalar,3,4> matrix3x4() const {
-    Matrix<Scalar,3,4> matrix;
-    matrix.block(0,0,3,3) = rxso3().matrix();
+  /// Returns the significant first three rows of the matrix above.
+  ///
+  SOPHUS_FUNC Matrix<Scalar, 3, 4> matrix3x4() const {
+    Matrix<Scalar, 3, 4> matrix;
+    matrix.template topLeftCorner<3, 3>() = rxso3().matrix();
     matrix.col(3) = translation();
     return matrix;
   }
 
-  /**
-   * \brief Assignment operator
-   */
-  template<typename OtherDerived> inline
-  Sim3GroupBase<Derived>& operator=
-  (const Sim3GroupBase<OtherDerived> & other) {
+  /// Assignment operator.
+  ///
+  SOPHUS_FUNC Sim3Base& operator=(Sim3Base const& other) = default;
+
+  /// Assignment-like operator from OtherDerived.
+  ///
+  template <class OtherDerived>
+  SOPHUS_FUNC Sim3Base<Derived>& operator=(
+      Sim3Base<OtherDerived> const& other) {
     rxso3() = other.rxso3();
     translation() = other.translation();
     return *this;
   }
 
-  /**
-   * \brief Group multiplication
-   * \see operator*=()
-   */
-  inline
-  const Sim3Group<Scalar> operator*(const Sim3Group<Scalar>& other) const {
-    Sim3Group<Scalar> result(*this);
-    result *= other;
-    return result;
+  /// Group multiplication, which is rotation plus scaling concatenation.
+  ///
+  /// Note: That scaling is calculated with saturation. See RxSO3 for
+  /// details.
+  ///
+  template <typename OtherDerived>
+  SOPHUS_FUNC Sim3Product<OtherDerived> operator*(
+      Sim3Base<OtherDerived> const& other) const {
+    return Sim3Product<OtherDerived>(
+        rxso3() * other.rxso3(), translation() + rxso3() * other.translation());
   }
 
-  /**
-   * \brief Group action on \f$ \mathbf{R}^3 \f$
-   *
-   * \param p point \f$p \in \mathbf{R}^3 \f$
-   * \returns point \f$p' \in \mathbf{R}^3 \f$,
-   *          rotated, scaled and translated version of \f$p\f$
-   *
-   * This function scales, rotates and translates point \f$ p \f$
-   * in \f$ \mathbf{R}^3 \f$ by the Sim3 transformation \f$sR,t\f$
-   * (=scaled rotation matrix, translation vector): \f$ p' = sR\cdot p + t \f$.
-   */
-  inline
-  const Point operator*(const Point & p) const {
-    return rxso3()*p + translation();
+  /// Group action on 3-points.
+  ///
+  /// This function rotates, scales and translates a three dimensional point
+  /// ``p`` by the Sim(3) element ``(bar_sR_foo, t_bar)`` (= similarity
+  /// transformation):
+  ///
+  ///   ``p_bar = bar_sR_foo * p_foo + t_bar``.
+  ///
+  template <typename PointDerived,
+            typename = typename std::enable_if<
+                IsFixedSizeVector<PointDerived, 3>::value>::type>
+  SOPHUS_FUNC PointProduct<PointDerived> operator*(
+      Eigen::MatrixBase<PointDerived> const& p) const {
+    return rxso3() * p + translation();
   }
 
-  /**
-   * \brief In-place group multiplication
-   *
-   * \see operator*()
-   */
-  inline
-  void operator*=(const Sim3Group<Scalar>& other) {
-    translation() += (rxso3() * other.translation());
-    rxso3() *= other.rxso3();
+  /// Group action on homogeneous 3-points. See above for more details.
+  ///
+  template <typename HPointDerived,
+            typename = typename std::enable_if<
+                IsFixedSizeVector<HPointDerived, 4>::value>::type>
+  SOPHUS_FUNC HomogeneousPointProduct<HPointDerived> operator*(
+      Eigen::MatrixBase<HPointDerived> const& p) const {
+    const PointProduct<HPointDerived> tp =
+        rxso3() * p.template head<3>() + p(3) * translation();
+    return HomogeneousPointProduct<HPointDerived>(tp(0), tp(1), tp(2), p(3));
   }
 
-  /**
-   * \brief Mutator of quaternion
-   */
-  inline
-  typename internal::traits<Derived>::RxSO3Type::QuaternionReference
-  quaternion() {
+  /// Group action on lines.
+  ///
+  /// This function rotates, scales and translates a parametrized line
+  /// ``l(t) = o + t * d`` by the Sim(3) element:
+  ///
+  /// Origin ``o`` is rotated, scaled and translated
+  /// Direction ``d`` is rotated
+  ///
+  SOPHUS_FUNC Line operator*(Line const& l) const {
+    Line rotatedLine = rxso3() * l;
+    return Line(rotatedLine.origin() + translation(), rotatedLine.direction());
+  }
+
+  /// In-place group multiplication. This method is only valid if the return
+  /// type of the multiplication is compatible with this SO3's Scalar type.
+  ///
+  template <typename OtherDerived,
+            typename = typename std::enable_if<
+                std::is_same<Scalar, ReturnScalar<OtherDerived>>::value>::type>
+  SOPHUS_FUNC Sim3Base<Derived>& operator*=(
+      Sim3Base<OtherDerived> const& other) {
+    *static_cast<Derived*>(this) = *this * other;
+    return *this;
+  }
+
+  /// Returns internal parameters of Sim(3).
+  ///
+  /// It returns (q.imag[0], q.imag[1], q.imag[2], q.real, t[0], t[1], t[2]),
+  /// with q being the quaternion, t the translation 3-vector.
+  ///
+  SOPHUS_FUNC Sophus::Vector<Scalar, num_parameters> params() const {
+    Sophus::Vector<Scalar, num_parameters> p;
+    p << rxso3().params(), translation();
+    return p;
+  }
+
+  /// Setter of non-zero quaternion.
+  ///
+  /// Precondition: ``quat`` must not be close to zero.
+  ///
+  SOPHUS_FUNC void setQuaternion(Eigen::Quaternion<Scalar> const& quat) {
+    rxso3().setQuaternion(quat);
+  }
+
+  /// Accessor of quaternion.
+  ///
+  SOPHUS_FUNC QuaternionType const& quaternion() const {
     return rxso3().quaternion();
   }
 
-  /**
-   * \brief Accessor of quaternion
-   */
-  inline
-  typename internal::traits<Derived>::RxSO3Type::ConstQuaternionReference
-  quaternion() const {
-    return rxso3().quaternion();
-  }
-
-  /**
-   * \returns Rotation matrix
-   *
-   * deprecated: use rotationMatrix() instead.
-   */
-  inline
-  EIGEN_DEPRECATED const Transformation rotation_matrix() const {
+  /// Returns Rotation matrix
+  ///
+  SOPHUS_FUNC Matrix3<Scalar> rotationMatrix() const {
     return rxso3().rotationMatrix();
   }
 
-  /**
-   * \returns Rotation matrix
-   */
-  inline
-  const Matrix<Scalar,3,3> rotationMatrix() const {
-    return rxso3().rotationMatrix();
-  }
-
-  /**
-   * \brief Mutator of RxSO3 group
-   */
-  EIGEN_STRONG_INLINE
-  RxSO3Reference rxso3() {
+  /// Mutator of SO3 group.
+  ///
+  SOPHUS_FUNC RxSO3Type& rxso3() {
     return static_cast<Derived*>(this)->rxso3();
   }
 
-  /**
-   * \brief Accessor of RxSO3 group
-   */
-  EIGEN_STRONG_INLINE
-  ConstRxSO3Reference rxso3() const {
-    return static_cast<const Derived*>(this)->rxso3();
+  /// Accessor of SO3 group.
+  ///
+  SOPHUS_FUNC RxSO3Type const& rxso3() const {
+    return static_cast<Derived const*>(this)->rxso3();
   }
 
-  /**
-   * \returns scale
-   */
-  EIGEN_STRONG_INLINE
-  const Scalar scale() const {
-    return rxso3().scale();
-  }
+  /// Returns scale.
+  ///
+  SOPHUS_FUNC Scalar scale() const { return rxso3().scale(); }
 
-  /**
-   * \brief Setter of quaternion using rotation matrix, leaves scale untouched
-   *
-   * \param R a 3x3 rotation matrix
-   * \pre       the 3x3 matrix should be orthogonal and have a determinant of 1
-   */
-  inline
-  void setRotationMatrix
-  (const Matrix<Scalar,3,3> & R) {
+  /// Setter of quaternion using rotation matrix ``R``, leaves scale as is.
+  ///
+  SOPHUS_FUNC void setRotationMatrix(Matrix3<Scalar>& R) {
     rxso3().setRotationMatrix(R);
   }
 
-  /**
-   * \brief Scale setter
-   */
-  EIGEN_STRONG_INLINE
-  void setScale(const Scalar & scale) const {
-    rxso3().setScale(scale);
-  }
+  /// Sets scale and leaves rotation as is.
+  ///
+  /// Note: This function as a significant computational cost, since it has to
+  /// call the square root twice.
+  ///
+  SOPHUS_FUNC void setScale(Scalar const& scale) { rxso3().setScale(scale); }
 
-  /**
-   * \brief Setter of quaternion using scaled rotation matrix
-   *
-   * \param sR a 3x3 scaled rotation matrix
-   * \pre        the 3x3 matrix should be "scaled orthogonal"
-   *             and have a positive determinant
-   */
-  inline
-  void setScaledRotationMatrix
-  (const Matrix<Scalar,3,3> & sR) {
+  /// Setter of quaternion using scaled rotation matrix ``sR``.
+  ///
+  /// Precondition: The 3x3 matrix must be "scaled orthogonal"
+  ///               and have a positive determinant.
+  ///
+  SOPHUS_FUNC void setScaledRotationMatrix(Matrix3<Scalar> const& sR) {
     rxso3().setScaledRotationMatrix(sR);
   }
 
-  /**
-   * \brief Mutator of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  TranslationReference translation() {
+  /// Mutator of translation vector
+  ///
+  SOPHUS_FUNC TranslationType& translation() {
     return static_cast<Derived*>(this)->translation();
   }
 
-  /**
-   * \brief Accessor of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  ConstTranslationReference translation() const {
-    return static_cast<const Derived*>(this)->translation();
+  /// Accessor of translation vector
+  ///
+  SOPHUS_FUNC TranslationType const& translation() const {
+    return static_cast<Derived const*>(this)->translation();
+  }
+};
+
+/// Sim3 using default storage; derived from Sim3Base.
+template <class Scalar_, int Options>
+class Sim3 : public Sim3Base<Sim3<Scalar_, Options>> {
+ public:
+  using Base = Sim3Base<Sim3<Scalar_, Options>>;
+  using Scalar = Scalar_;
+  using Transformation = typename Base::Transformation;
+  using Point = typename Base::Point;
+  using HomogeneousPoint = typename Base::HomogeneousPoint;
+  using Tangent = typename Base::Tangent;
+  using Adjoint = typename Base::Adjoint;
+  using RxSo3Member = RxSO3<Scalar, Options>;
+  using TranslationMember = Vector3<Scalar, Options>;
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  /// Default constructor initializes similarity transform to the identity.
+  ///
+  SOPHUS_FUNC Sim3();
+
+  /// Copy constructor
+  ///
+  SOPHUS_FUNC Sim3(Sim3 const& other) = default;
+
+  /// Copy-like constructor from OtherDerived.
+  ///
+  template <class OtherDerived>
+  SOPHUS_FUNC Sim3(Sim3Base<OtherDerived> const& other)
+      : rxso3_(other.rxso3()), translation_(other.translation()) {
+    static_assert(std::is_same<typename OtherDerived::Scalar, Scalar>::value,
+                  "must be same Scalar type");
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // public static functions
-  ////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * \param   b 7-vector representation of Lie algebra element
-   * \returns   derivative of Lie bracket
-   *
-   * This function returns \f$ \frac{\partial}{\partial a} [a, b]_{sim3} \f$
-   * with \f$ [a, b]_{sim3} \f$ being the lieBracket() of the Lie algebra sim3.
-   *
-   * \see lieBracket()
-   */
-  inline static
-  const Adjoint d_lieBracketab_by_d_a(const Tangent & b) {
-    const Matrix<Scalar,3,1> & upsilon2 = b.template head<3>();
-    const Matrix<Scalar,3,1> & omega2 = b.template segment<3>(3);
-    Scalar sigma2 = b[6];
-
-    Adjoint res;
-    res.setZero();
-    res.template topLeftCorner<3,3>()
-        = -SO3::hat(omega2)-sigma2*Matrix3d::Identity();
-    res.template block<3,3>(0,3) = -SO3::hat(upsilon2);
-    res.template topRightCorner<3,1>() = upsilon2;
-    res.template block<3,3>(3,3) = -SO3::hat(omega2);
-    return res;
+  /// Constructor from RxSO3 and translation vector
+  ///
+  template <class OtherDerived, class D>
+  SOPHUS_FUNC Sim3(RxSO3Base<OtherDerived> const& rxso3,
+                   Eigen::MatrixBase<D> const& translation)
+      : rxso3_(rxso3), translation_(translation) {
+    static_assert(std::is_same<typename OtherDerived::Scalar, Scalar>::value,
+                  "must be same Scalar type");
+    static_assert(std::is_same<typename D::Scalar, Scalar>::value,
+                  "must be same Scalar type");
   }
 
-  /**
-   * \brief Group exponential
-   *
-   * \param a tangent space element (7-vector)
-   * \returns corresponding element of the group Sim3
-   *
-   * The first three components of \f$ a \f$ represent the translational
-   * part \f$ \upsilon \f$ in the tangent space of Sim3, while the last three
-   * components of \f$ a \f$ represents the rotation vector \f$ \omega \f$.
-   *
-   * To be more specific, this function computes \f$ \exp(\widehat{a}) \f$
-   * with \f$ \exp(\cdot) \f$ being the matrix exponential
-   * and \f$ \widehat{\cdot} \f$ the hat()-operator of Sim3.
-   *
-   * \see hat()
-   * \see log()
-   */
-  inline static
-  const Sim3Group<Scalar> exp(const Tangent & a) {
-    const Matrix<Scalar,3,1> & upsilon = a.segment(0,3);
-    const Matrix<Scalar,3,1> & omega = a.segment(3,3);
-    Scalar sigma = a[6];
+  /// Constructor from quaternion and translation vector.
+  ///
+  /// Precondition: quaternion must not be close to zero.
+  ///
+  template <class D1, class D2>
+  SOPHUS_FUNC Sim3(Eigen::QuaternionBase<D1> const& quaternion,
+                   Eigen::MatrixBase<D2> const& translation)
+      : rxso3_(quaternion), translation_(translation) {
+    static_assert(std::is_same<typename D1::Scalar, Scalar>::value,
+                  "must be same Scalar type");
+    static_assert(std::is_same<typename D2::Scalar, Scalar>::value,
+                  "must be same Scalar type");
+  }
+
+  /// Constructor from 4x4 matrix
+  ///
+  /// Precondition: Top-left 3x3 matrix needs to be "scaled-orthogonal" with
+  ///               positive determinant. The last row must be ``(0, 0, 0, 1)``.
+  ///
+  SOPHUS_FUNC explicit Sim3(Matrix<Scalar, 4, 4> const& T)
+      : rxso3_(T.template topLeftCorner<3, 3>()),
+        translation_(T.template block<3, 1>(0, 3)) {}
+
+  /// This provides unsafe read/write access to internal data. Sim(3) is
+  /// represented by an Eigen::Quaternion (four parameters) and a 3-vector. When
+  /// using direct write access, the user needs to take care of that the
+  /// quaternion is not set close to zero.
+  ///
+  SOPHUS_FUNC Scalar* data() {
+    // rxso3_ and translation_ are laid out sequentially with no padding
+    return rxso3_.data();
+  }
+
+  /// Const version of data() above.
+  ///
+  SOPHUS_FUNC Scalar const* data() const {
+    // rxso3_ and translation_ are laid out sequentially with no padding
+    return rxso3_.data();
+  }
+
+  /// Accessor of RxSO3
+  ///
+  SOPHUS_FUNC RxSo3Member& rxso3() { return rxso3_; }
+
+  /// Mutator of RxSO3
+  ///
+  SOPHUS_FUNC RxSo3Member const& rxso3() const { return rxso3_; }
+
+  /// Mutator of translation vector
+  ///
+  SOPHUS_FUNC TranslationMember& translation() { return translation_; }
+
+  /// Accessor of translation vector
+  ///
+  SOPHUS_FUNC TranslationMember const& translation() const {
+    return translation_;
+  }
+
+  /// Returns derivative of exp(x).matrix() wrt. ``x_i at x=0``.
+  ///
+  SOPHUS_FUNC static Transformation Dxi_exp_x_matrix_at_0(int i) {
+    return generator(i);
+  }
+
+  /// Group exponential
+  ///
+  /// This functions takes in an element of tangent space and returns the
+  /// corresponding element of the group Sim(3).
+  ///
+  /// The first three components of ``a`` represent the translational part
+  /// ``upsilon`` in the tangent space of Sim(3), the following three components
+  /// of ``a`` represents the rotation vector ``omega`` and the final component
+  /// represents the logarithm of the scaling factor ``sigma``.
+  /// To be more specific, this function computes ``expmat(hat(a))`` with
+  /// ``expmat(.)`` being the matrix exponential and ``hat(.)`` the hat-operator
+  /// of Sim(3), see below.
+  ///
+  SOPHUS_FUNC static Sim3<Scalar> exp(Tangent const& a) {
+    // For the derivation of the exponential map of Sim(3) see
+    // H. Strasdat, "Local Accuracy and Global Consistency for Efficient Visual
+    // SLAM", PhD thesis, 2012.
+    // http:///hauke.strasdat.net/files/strasdat_thesis_2012.pdf (A.5, pp. 186)
+    Vector3<Scalar> const upsilon = a.segment(0, 3);
+    Vector3<Scalar> const omega = a.segment(3, 3);
+    Scalar const sigma = a[6];
     Scalar theta;
-    RxSO3Group<Scalar> rxso3
-        = RxSO3Group<Scalar>::expAndTheta(a.template tail<4>(), &theta);
-    const Matrix<Scalar,3,3> & Omega = SO3Group<Scalar>::hat(omega);
-    const Matrix<Scalar,3,3> & W = calcW(theta, sigma, rxso3.scale(), Omega);
-    return Sim3Group<Scalar>(rxso3, W*upsilon);
+    RxSO3<Scalar> rxso3 =
+        RxSO3<Scalar>::expAndTheta(a.template tail<4>(), &theta);
+    Matrix3<Scalar> const Omega = SO3<Scalar>::hat(omega);
+
+    Matrix3<Scalar> const W = details::calcW<Scalar, 3>(Omega, theta, sigma);
+    return Sim3<Scalar>(rxso3, W * upsilon);
   }
 
-  /**
-   * \brief Generators
-   *
-   * \pre \f$ i \in \{0,1,2,3,4,5,6\} \f$
-   * \returns \f$ i \f$th generator \f$ G_i \f$ of Sim3
-   *
-   * The infinitesimal generators of Sim3 are: \f[
-   *        G_0 = \left( \begin{array}{cccc}
-   *                          0&  0&  0&  1\\
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right),
-   *        G_1 = \left( \begin{array}{cccc}
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  1\\
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right),
-   *        G_2 = \left( \begin{array}{cccc}
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  1\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right).
-   *        G_3 = \left( \begin{array}{cccc}
-   *                          0&  0&  0&  0\\
-   *                          0&  0& -1&  0\\
-   *                          0&  1&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right),
-   *        G_4 = \left( \begin{array}{cccc}
-   *                          0&  0&  1&  0\\
-   *                          0&  0&  0&  0\\
-   *                         -1&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right),
-   *        G_5 = \left( \begin{array}{cccc}
-   *                          0& -1&  0&  0\\
-   *                          1&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right),
-   *        G_6 = \left( \begin{array}{cccc}
-   *                          1&  0&  0&  0\\
-   *                          0&  1&  0&  0\\
-   *                          0&  0&  1&  0\\
-   *                          0&  0&  0&  0\\
-   *                     \end{array} \right).
-   * \f]
-   * \see hat()
-   */
-  inline static
-  const Transformation generator(int i) {
-    if (i<0 || i>6) {
-      throw SophusException("i is not in range [0,6].");
-    }
+  /// Returns the ith infinitesimal generators of Sim(3).
+  ///
+  /// The infinitesimal generators of Sim(3) are:
+  ///
+  /// ```
+  ///         |  0  0  0  1 |
+  ///   G_0 = |  0  0  0  0 |
+  ///         |  0  0  0  0 |
+  ///         |  0  0  0  0 |
+  ///
+  ///         |  0  0  0  0 |
+  ///   G_1 = |  0  0  0  1 |
+  ///         |  0  0  0  0 |
+  ///         |  0  0  0  0 |
+  ///
+  ///         |  0  0  0  0 |
+  ///   G_2 = |  0  0  0  0 |
+  ///         |  0  0  0  1 |
+  ///         |  0  0  0  0 |
+  ///
+  ///         |  0  0  0  0 |
+  ///   G_3 = |  0  0 -1  0 |
+  ///         |  0  1  0  0 |
+  ///         |  0  0  0  0 |
+  ///
+  ///         |  0  0  1  0 |
+  ///   G_4 = |  0  0  0  0 |
+  ///         | -1  0  0  0 |
+  ///         |  0  0  0  0 |
+  ///
+  ///         |  0 -1  0  0 |
+  ///   G_5 = |  1  0  0  0 |
+  ///         |  0  0  0  0 |
+  ///         |  0  0  0  0 |
+  ///
+  ///         |  1  0  0  0 |
+  ///   G_6 = |  0  1  0  0 |
+  ///         |  0  0  1  0 |
+  ///         |  0  0  0  0 |
+  /// ```
+  ///
+  /// Precondition: ``i`` must be in [0, 6].
+  ///
+  SOPHUS_FUNC static Transformation generator(int i) {
+    SOPHUS_ENSURE(i >= 0 || i <= 6, "i should be in range [0,6].");
     Tangent e;
     e.setZero();
-    e[i] = static_cast<Scalar>(1);
+    e[i] = Scalar(1);
     return hat(e);
   }
 
-  /**
-   * \brief hat-operator
-   *
-   * \param omega 7-vector representation of Lie algebra element
-   * \returns     4x4-matrix representatin of Lie algebra element
-   *
-   * Formally, the hat-operator of Sim3 is defined
-   * as \f$ \widehat{\cdot}: \mathbf{R}^7 \rightarrow \mathbf{R}^{4\times 4},
-   * \quad \widehat{\omega} = \sum_{i=0}^5 G_i \omega_i \f$
-   * with \f$ G_i \f$ being the ith infinitesial generator().
-   *
-   * \see generator()
-   * \see vee()
-   */
-  inline static
-  const Transformation hat(const Tangent & v) {
+  /// hat-operator
+  ///
+  /// It takes in the 7-vector representation and returns the corresponding
+  /// matrix representation of Lie algebra element.
+  ///
+  /// Formally, the hat()-operator of Sim(3) is defined as
+  ///
+  ///   ``hat(.): R^7 -> R^{4x4},  hat(a) = sum_i a_i * G_i``  (for i=0,...,6)
+  ///
+  /// with ``G_i`` being the ith infinitesimal generator of Sim(3).
+  ///
+  /// The corresponding inverse is the vee()-operator, see below.
+  ///
+  SOPHUS_FUNC static Transformation hat(Tangent const& a) {
     Transformation Omega;
-    Omega.template topLeftCorner<3,3>()
-        = RxSO3Group<Scalar>::hat(v.template tail<4>());
-    Omega.col(3).template head<3>() = v.template head<3>();
+    Omega.template topLeftCorner<3, 3>() =
+        RxSO3<Scalar>::hat(a.template tail<4>());
+    Omega.col(3).template head<3>() = a.template head<3>();
     Omega.row(3).setZero();
     return Omega;
   }
 
-  /**
-   * \brief Lie bracket
-   *
-   * \param a 7-vector representation of Lie algebra element
-   * \param b 7-vector representation of Lie algebra element
-   * \returns 7-vector representation of Lie algebra element
-   *
-   * It computes the bracket of Sim3. To be more specific, it
-   * computes \f$ [a, b]_{sim3}
-   * := [\widehat{a}, \widehat{b}]^\vee \f$
-   * with \f$ [A,B] = AB-BA \f$ being the matrix
-   * commutator, \f$ \widehat{\cdot} \f$ the
-   * hat()-operator and \f$ (\cdot)^\vee \f$ the vee()-operator of Sim3.
-   *
-   * \see hat()
-   * \see vee()
-   */
-  inline static
-  const Tangent lieBracket(const Tangent & a,
-                           const Tangent & b) {
-    const Matrix<Scalar,3,1> & upsilon1 = a.template head<3>();
-    const Matrix<Scalar,3,1> & upsilon2 = b.template head<3>();
-    const Matrix<Scalar,3,1> & omega1 = a.template segment<3>(3);
-    const Matrix<Scalar,3,1> & omega2 = b.template segment<3>(3);
+  /// Lie bracket
+  ///
+  /// It computes the Lie bracket of Sim(3). To be more specific, it computes
+  ///
+  ///   ``[omega_1, omega_2]_sim3 := vee([hat(omega_1), hat(omega_2)])``
+  ///
+  /// with ``[A,B] := AB-BA`` being the matrix commutator, ``hat(.)`` the
+  /// hat()-operator and ``vee(.)`` the vee()-operator of Sim(3).
+  ///
+  SOPHUS_FUNC static Tangent lieBracket(Tangent const& a, Tangent const& b) {
+    Vector3<Scalar> const upsilon1 = a.template head<3>();
+    Vector3<Scalar> const upsilon2 = b.template head<3>();
+    Vector3<Scalar> const omega1 = a.template segment<3>(3);
+    Vector3<Scalar> const omega2 = b.template segment<3>(3);
     Scalar sigma1 = a[6];
     Scalar sigma2 = b[6];
 
     Tangent res;
-    res.template head<3>() =
-        SO3Group<Scalar>::hat(omega1)*upsilon2
-        + SO3Group<Scalar>::hat(upsilon1)*omega2
-        + sigma1*upsilon2 - sigma2*upsilon1;
+    res.template head<3>() = SO3<Scalar>::hat(omega1) * upsilon2 +
+                             SO3<Scalar>::hat(upsilon1) * omega2 +
+                             sigma1 * upsilon2 - sigma2 * upsilon1;
     res.template segment<3>(3) = omega1.cross(omega2);
-    res[6] = static_cast<Scalar>(0);
+    res[6] = Scalar(0);
 
     return res;
   }
 
-  /**
-   * \brief Logarithmic map
-   *
-   * \param other element of the group Sim3
-   * \returns     corresponding tangent space element
-   *              (translational part \f$ \upsilon \f$
-   *               and rotation vector \f$ \omega \f$)
-   *
-   * Computes the logarithmic, the inverse of the group exponential.
-   * To be specific, this function computes \f$ \log({\cdot})^\vee \f$
-   * with \f$ \vee(\cdot) \f$ being the matrix logarithm
-   * and \f$ \vee{\cdot} \f$ the vee()-operator of Sim3.
-   *
-   * \see exp()
-   * \see vee()
-   */
-  inline static
-  const Tangent log(const Sim3Group<Scalar> & other) {
-    Tangent res;
-    Scalar theta;
-    const Matrix<Scalar,4,1> & omega_sigma
-        = RxSO3Group<Scalar>::logAndTheta(other.rxso3(), &theta);
-    const Matrix<Scalar,3,1> & omega = omega_sigma.template head<3>();
-    Scalar sigma = omega_sigma[3];
-    const Matrix<Scalar,3,3> & W
-        = calcW(theta, sigma, other.scale(), SO3Group<Scalar>::hat(omega));
-    res.segment(0,3) = W.partialPivLu().solve(other.translation());
-    res.segment(3,3) = omega;
-    res[6] = sigma;
-    return res;
+  /// Draw uniform sample from Sim(3) manifold.
+  ///
+  /// Translations are drawn component-wise from the range [-1, 1].
+  /// The scale factor is drawn uniformly in log2-space from [-1, 1],
+  /// hence the scale is in [0.5, 2].
+  ///
+  template <class UniformRandomBitGenerator>
+  static Sim3 sampleUniform(UniformRandomBitGenerator& generator) {
+    std::uniform_real_distribution<Scalar> uniform(Scalar(-1), Scalar(1));
+    return Sim3(RxSO3<Scalar>::sampleUniform(generator),
+                Vector3<Scalar>(uniform(generator), uniform(generator),
+                                uniform(generator)));
   }
 
-  /**
-   * \brief vee-operator
-   *
-   * \param Omega 4x4-matrix representation of Lie algebra element
-   * \returns     7-vector representatin of Lie algebra element
-   *
-   * This is the inverse of the hat()-operator.
-   *
-   * \see hat()
-   */
-  inline static
-  const Tangent vee(const Transformation & Omega) {
+  /// vee-operator
+  ///
+  /// It takes the 4x4-matrix representation ``Omega`` and maps it to the
+  /// corresponding 7-vector representation of Lie algebra.
+  ///
+  /// This is the inverse of the hat()-operator, see above.
+  ///
+  /// Precondition: ``Omega`` must have the following structure:
+  ///
+  ///                |  g -f  e  a |
+  ///                |  f  g -d  b |
+  ///                | -e  d  g  c |
+  ///                |  0  0  0  0 |
+  ///
+  SOPHUS_FUNC static Tangent vee(Transformation const& Omega) {
     Tangent upsilon_omega_sigma;
-    upsilon_omega_sigma.template head<3>()
-        = Omega.col(3).template head<3>();
-    upsilon_omega_sigma.template tail<4>()
-        = RxSO3Group<Scalar>::vee(Omega.template topLeftCorner<3,3>());
+    upsilon_omega_sigma.template head<3>() = Omega.col(3).template head<3>();
+    upsilon_omega_sigma.template tail<4>() =
+        RxSO3<Scalar>::vee(Omega.template topLeftCorner<3, 3>());
     return upsilon_omega_sigma;
   }
 
-private:
-  static
-  Matrix<Scalar,3,3> calcW(const Scalar & theta,
-                           const Scalar & sigma,
-                           const Scalar & scale,
-                           const Matrix<Scalar,3,3> & Omega){
-    static const Matrix<Scalar,3,3> I
-        = Matrix<Scalar,3,3>::Identity();
-    static const Scalar one = static_cast<Scalar>(1.);
-    static const Scalar half = static_cast<Scalar>(1./2.);
-    Matrix<Scalar,3,3> Omega2 = Omega*Omega;
-
-    Scalar A,B,C;
-    if (std::abs(sigma)<SophusConstants<Scalar>::epsilon()) {
-      C = one;
-      if (std::abs(theta)<SophusConstants<Scalar>::epsilon()) {
-        A = half;
-        B = static_cast<Scalar>(1./6.);
-      } else {
-        Scalar theta_sq = theta*theta;
-        A = (one-std::cos(theta))/theta_sq;
-        B = (theta-std::sin(theta))/(theta_sq*theta);
-      }
-    } else {
-      C = (scale-one)/sigma;
-      if (std::abs(theta)<SophusConstants<Scalar>::epsilon()) {
-        Scalar sigma_sq = sigma*sigma;
-        A = ((sigma-one)*scale+one)/sigma_sq;
-        B = ((half*sigma*sigma-sigma+one)*scale)/(sigma_sq*sigma);
-      } else {
-        Scalar theta_sq = theta*theta;
-        Scalar a = scale*std::sin(theta);
-        Scalar b = scale*std::cos(theta);
-        Scalar c = theta_sq+sigma*sigma;
-        A = (a*sigma+ (one-b)*theta)/(theta*c);
-        B = (C-((b-one)*sigma+a*theta)/(c))*one/(theta_sq);
-      }
-    }
-    return A*Omega + B*Omega2 + C*I;
-  }
+ protected:
+  RxSo3Member rxso3_;
+  TranslationMember translation_;
 };
 
-/**
- * \brief Sim3 default type - Constructors and default storage for Sim3 Type
- */
-template<typename _Scalar, int _Options>
-class Sim3Group : public Sim3GroupBase<Sim3Group<_Scalar,_Options> > {
-  typedef Sim3GroupBase<Sim3Group<_Scalar,_Options> > Base;
-public:
-  /** \brief scalar type */
-  typedef typename internal::traits<Sim3Group<_Scalar,_Options> >
-  ::Scalar Scalar;
-  /** \brief RxSO3 reference type */
-  typedef typename internal::traits<Sim3Group<_Scalar,_Options> >
-  ::RxSO3Type & RxSO3Reference;
-  /** \brief RxSO3 const reference type */
-  typedef const typename internal::traits<Sim3Group<_Scalar,_Options> >
-  ::RxSO3Type & ConstRxSO3Reference;
-  /** \brief translation reference type */
-  typedef typename internal::traits<Sim3Group<_Scalar,_Options> >
-  ::TranslationType & TranslationReference;
-  /** \brief translation const reference type */
-  typedef const typename internal::traits<Sim3Group<_Scalar,_Options> >
-  ::TranslationType & ConstTranslationReference;
+template <class Scalar, int Options>
+Sim3<Scalar, Options>::Sim3() : translation_(TranslationMember::Zero()) {
+  static_assert(std::is_standard_layout<Sim3>::value,
+                "Assume standard layout for the use of offsetof check below.");
+  static_assert(
+      offsetof(Sim3, rxso3_) + sizeof(Scalar) * RxSO3<Scalar>::num_parameters ==
+          offsetof(Sim3, translation_),
+      "This class assumes packed storage and hence will only work "
+      "correctly depending on the compiler (options) - in "
+      "particular when using [this->data(), this-data() + "
+      "num_parameters] to access the raw data in a contiguous fashion.");
+}
 
-  /** \brief degree of freedom of group */
-  static const int DoF = Base::DoF;
-  /** \brief number of internal parameters used */
-  static const int num_parameters = Base::num_parameters;
-  /** \brief group transformations are NxN matrices */
-  static const int N = Base::N;
-  /** \brief group transfomation type */
-  typedef typename Base::Transformation Transformation;
-  /** \brief point type */
-  typedef typename Base::Point Point;
-  /** \brief tangent vector type */
-  typedef typename Base::Tangent Tangent;
-  /** \brief adjoint transformation type */
-  typedef typename Base::Adjoint Adjoint;
-
-
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  /**
-   * \brief Default constructor
-   *
-   * Initialize Quaternion to identity rotation and translation to zero.
-   */
-  inline
-  Sim3Group()
-    : translation_( Matrix<Scalar,3,1>::Zero() )
-  {
-  }
-
-  /**
-   * \brief Copy constructor
-   */
-  template<typename OtherDerived> inline
-  Sim3Group(const Sim3GroupBase<OtherDerived> & other)
-    : rxso3_(other.rxso3()), translation_(other.translation()) {
-  }
-
-  /**
-   * \brief Constructor from RxSO3 and translation vector
-   */
-  template<typename OtherDerived> inline
-  Sim3Group(const RxSO3GroupBase<OtherDerived> & rxso3,
-            const Point & translation)
-    : rxso3_(rxso3), translation_(translation) {
-  }
-
-  /**
-   * \brief Constructor from quaternion and translation vector
-   *
-   * \pre quaternion must not be zero
-   */
-  inline
-  Sim3Group(const Quaternion<Scalar> & quaternion,
-            const Point & translation)
-    : rxso3_(quaternion), translation_(translation) {
-  }
-
-  /**
-   * \brief Constructor from 4x4 matrix
-   *
-   * \pre top-left 3x3 sub-matrix need to be "scaled orthogonal"
-   *      with positive determinant of
-   */
-  inline explicit
-  Sim3Group(const Eigen::Matrix<Scalar,4,4>& T)
-    : rxso3_(T.template topLeftCorner<3,3>()),
-      translation_(T.template block<3,1>(0,3)) {
-  }
-
-  /**
-   * \returns pointer to internal data
-   *
-   * This provides unsafe read/write access to internal data. Sim3 is
-   * represented by a pair of an RxSO3 element (4 parameters) and translation
-   * vector (three parameters).
-   *
-   * Note: The first three Scalars represent the imaginary parts, while the
-   */
-  EIGEN_STRONG_INLINE
-  Scalar* data() {
-    // rxso3_ and translation_ are layed out sequentially with no padding
-    return rxso3_.data();
-  }
-
-  /**
-   * \returns const pointer to internal data
-   *
-   * Const version of data().
-   */
-  EIGEN_STRONG_INLINE
-  const Scalar* data() const {
-    // rxso3_ and translation_ are layed out sequentially with no padding
-    return rxso3_.data();
-  }
-
-  /**
-   * \brief Accessor of RxSO3
-   */
-  EIGEN_STRONG_INLINE
-  RxSO3Reference rxso3() {
-    return rxso3_;
-  }
-
-  /**
-   * \brief Mutator of RxSO3
-   */
-  EIGEN_STRONG_INLINE
-  ConstRxSO3Reference rxso3() const {
-    return rxso3_;
-  }
-
-  /**
-   * \brief Mutator of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  TranslationReference translation() {
-    return translation_;
-  }
-
-  /**
-   * \brief Accessor of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  ConstTranslationReference translation() const {
-    return translation_;
-  }
-
-protected:
-  Sophus::RxSO3Group<Scalar> rxso3_;
-  Matrix<Scalar,3,1> translation_;
-};
-
-
-} // end namespace
-
+}  // namespace Sophus
 
 namespace Eigen {
-/**
- * \brief Specialisation of Eigen::Map for Sim3GroupBase
- *
- * Allows us to wrap Sim3 Objects around POD array
- * (e.g. external c style quaternion)
- */
-template<typename _Scalar, int _Options>
-class Map<Sophus::Sim3Group<_Scalar>, _Options>
-    : public Sophus::Sim3GroupBase<Map<Sophus::Sim3Group<_Scalar>, _Options> > {
-  typedef Sophus::Sim3GroupBase<Map<Sophus::Sim3Group<_Scalar>, _Options> >
-  Base;
 
-public:
-  /** \brief scalar type */
-  typedef typename internal::traits<Map>::Scalar Scalar;
-  /** \brief translation reference type */
-  typedef typename internal::traits<Map>::TranslationType &
-  TranslationReference;
-  /** \brief translation const reference type */
-  typedef const typename internal::traits<Map>::TranslationType &
-  ConstTranslationReference;
-  /** \brief RxSO3 reference type */
-  typedef typename internal::traits<Map>::RxSO3Type &
-  RxSO3Reference;
-  /** \brief RxSO3 const reference type */
-  typedef const typename internal::traits<Map>::RxSO3Type &
-  ConstRxSO3Reference;
+/// Specialization of Eigen::Map for ``Sim3``; derived from Sim3Base.
+///
+/// Allows us to wrap Sim3 objects around POD array.
+template <class Scalar_, int Options>
+class Map<Sophus::Sim3<Scalar_>, Options>
+    : public Sophus::Sim3Base<Map<Sophus::Sim3<Scalar_>, Options>> {
+ public:
+  using Base = Sophus::Sim3Base<Map<Sophus::Sim3<Scalar_>, Options>>;
+  using Scalar = Scalar_;
+  using Transformation = typename Base::Transformation;
+  using Point = typename Base::Point;
+  using HomogeneousPoint = typename Base::HomogeneousPoint;
+  using Tangent = typename Base::Tangent;
+  using Adjoint = typename Base::Adjoint;
 
+  // LCOV_EXCL_START
+  SOPHUS_INHERIT_ASSIGNMENT_OPERATORS(Map);
+  // LCOV_EXCL_STOP
 
-  /** \brief degree of freedom of group */
-  static const int DoF = Base::DoF;
-  /** \brief number of internal parameters used */
-  static const int num_parameters = Base::num_parameters;
-  /** \brief group transformations are NxN matrices */
-  static const int N = Base::N;
-  /** \brief group transfomation type */
-  typedef typename Base::Transformation Transformation;
-  /** \brief point type */
-  typedef typename Base::Point Point;
-  /** \brief tangent vector type */
-  typedef typename Base::Tangent Tangent;
-  /** \brief adjoint transformation type */
-  typedef typename Base::Adjoint Adjoint;
-
-  EIGEN_INHERIT_ASSIGNMENT_EQUAL_OPERATOR(Map)
   using Base::operator*=;
   using Base::operator*;
 
-  EIGEN_STRONG_INLINE
-  Map(Scalar* coeffs)
-    : rxso3_(coeffs),
-      translation_(coeffs+Sophus::RxSO3Group<Scalar>::num_parameters) {
-  }
+  SOPHUS_FUNC Map(Scalar* coeffs)
+      : rxso3_(coeffs),
+        translation_(coeffs + Sophus::RxSO3<Scalar>::num_parameters) {}
 
-  /**
-   * \brief Mutator of RxSO3
-   */
-  EIGEN_STRONG_INLINE
-  RxSO3Reference rxso3() {
+  /// Mutator of RxSO3
+  ///
+  SOPHUS_FUNC Map<Sophus::RxSO3<Scalar>, Options>& rxso3() { return rxso3_; }
+
+  /// Accessor of RxSO3
+  ///
+  SOPHUS_FUNC Map<Sophus::RxSO3<Scalar>, Options> const& rxso3() const {
     return rxso3_;
   }
 
-  /**
-   * \brief Accessor of RxSO3
-   */
-  EIGEN_STRONG_INLINE
-  ConstRxSO3Reference rxso3() const {
-    return rxso3_;
-  }
-
-  /**
-   * \brief Mutator of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  TranslationReference translation() {
+  /// Mutator of translation vector
+  ///
+  SOPHUS_FUNC Map<Sophus::Vector3<Scalar>, Options>& translation() {
     return translation_;
   }
 
-  /**
-   * \brief Accessor of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  ConstTranslationReference translation() const {
+  /// Accessor of translation vector
+  SOPHUS_FUNC Map<Sophus::Vector3<Scalar>, Options> const& translation() const {
     return translation_;
   }
 
-protected:
-  Map<Sophus::RxSO3Group<Scalar>,_Options> rxso3_;
-  Map<Matrix<Scalar,3,1>,_Options> translation_;
+ protected:
+  Map<Sophus::RxSO3<Scalar>, Options> rxso3_;
+  Map<Sophus::Vector3<Scalar>, Options> translation_;
 };
 
-/**
- * \brief Specialisation of Eigen::Map for const Sim3GroupBase
- *
- * Allows us to wrap Sim3 Objects around POD array
- * (e.g. external c style quaternion)
- */
-template<typename _Scalar, int _Options>
-class Map<const Sophus::Sim3Group<_Scalar>, _Options>
-    : public Sophus::Sim3GroupBase<
-    Map<const Sophus::Sim3Group<_Scalar>, _Options> > {
-  typedef Sophus::Sim3GroupBase<
-  Map<const Sophus::Sim3Group<_Scalar>, _Options> > Base;
+/// Specialization of Eigen::Map for ``Sim3 const``; derived from Sim3Base.
+///
+/// Allows us to wrap RxSO3 objects around POD array.
+template <class Scalar_, int Options>
+class Map<Sophus::Sim3<Scalar_> const, Options>
+    : public Sophus::Sim3Base<Map<Sophus::Sim3<Scalar_> const, Options>> {
+  using Base = Sophus::Sim3Base<Map<Sophus::Sim3<Scalar_> const, Options>>;
 
-public:
-  /** \brief scalar type */
-  typedef typename internal::traits<Map>::Scalar Scalar;
-  /** \brief translation type */
-  typedef const typename internal::traits<Map>::TranslationType &
-  ConstTranslationReference;
-  /** \brief RxSO3 const reference type */
-  typedef const typename internal::traits<Map>::RxSO3Type &
-  ConstRxSO3Reference;
+ public:
+  using Scalar = Scalar_;
+  using Transformation = typename Base::Transformation;
+  using Point = typename Base::Point;
+  using HomogeneousPoint = typename Base::HomogeneousPoint;
+  using Tangent = typename Base::Tangent;
+  using Adjoint = typename Base::Adjoint;
 
-  /** \brief degree of freedom of group */
-  static const int DoF = Base::DoF;
-  /** \brief number of internal parameters used */
-  static const int num_parameters = Base::num_parameters;
-  /** \brief group transformations are NxN matrices */
-  static const int N = Base::N;
-  /** \brief group transfomation type */
-  typedef typename Base::Transformation Transformation;
-  /** \brief point type */
-  typedef typename Base::Point Point;
-  /** \brief tangent vector type */
-  typedef typename Base::Tangent Tangent;
-  /** \brief adjoint transformation type */
-  typedef typename Base::Adjoint Adjoint;
-
-  EIGEN_INHERIT_ASSIGNMENT_EQUAL_OPERATOR(Map)
   using Base::operator*=;
   using Base::operator*;
 
-  EIGEN_STRONG_INLINE
-  Map(const Scalar* coeffs)
-    : rxso3_(coeffs),
-      translation_(coeffs+Sophus::RxSO3Group<Scalar>::num_parameters) {
-  }
+  SOPHUS_FUNC Map(Scalar const* coeffs)
+      : rxso3_(coeffs),
+        translation_(coeffs + Sophus::RxSO3<Scalar>::num_parameters) {}
 
-  EIGEN_STRONG_INLINE
-  Map(const Scalar* trans_coeffs, const Scalar* rot_coeffs)
-    : translation_(trans_coeffs), rxso3_(rot_coeffs){
-  }
-
-  /**
-   * \brief Accessor of RxSO3
-   */
-  EIGEN_STRONG_INLINE
-  ConstRxSO3Reference rxso3() const {
+  /// Accessor of RxSO3
+  ///
+  SOPHUS_FUNC Map<Sophus::RxSO3<Scalar> const, Options> const& rxso3() const {
     return rxso3_;
   }
 
-  /**
-   * \brief Accessor of translation vector
-   */
-  EIGEN_STRONG_INLINE
-  ConstTranslationReference translation() const {
+  /// Accessor of translation vector
+  ///
+  SOPHUS_FUNC Map<Sophus::Vector3<Scalar> const, Options> const& translation()
+      const {
     return translation_;
   }
 
-protected:
-  const Map<const Sophus::RxSO3Group<Scalar>,_Options> rxso3_;
-  const Map<const Matrix<Scalar,3,1>,_Options> translation_;
+ protected:
+  Map<Sophus::RxSO3<Scalar> const, Options> const rxso3_;
+  Map<Sophus::Vector3<Scalar> const, Options> const translation_;
 };
-
-}
+}  // namespace Eigen
 
 #endif

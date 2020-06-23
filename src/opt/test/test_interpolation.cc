@@ -38,7 +38,7 @@ constexpr float kErrorEpsilon = 1e-5f;
 
 TEST(Interpolation, Bilinear) {
   cv::Mat_<float> image(2, 2);
-  float value, dvalue_dx, dvalue_dy;
+  float value=0, dvalue_dx = 0, dvalue_dy = 0;
   
   // Setup image.
   image(0, 0) = 1;

@@ -54,7 +54,7 @@ void SetUpDirectionTool::PerformAction(
   
   // Flip the plane if necessary so that positive distances are on the side
   // where the camera position is.
-  Sophus::SE3f object_T_global = selected_object.global_T_object.inverse();
+  Sophus::Sim3f object_T_global = selected_object.global_T_object.inverse();
   Eigen::Vector3f object_camera_position = object_T_global * render_widget_->camera_T_world().inverse().translation();
   if (plane.signedDistance(object_camera_position) < 0) {
     plane.coeffs() = -1 * plane.coeffs();
@@ -77,11 +77,11 @@ bool SetUpDirectionTool::mousePressEvent(QMouseEvent* event) {
     int current_object_index = render_widget_->current_object_index();
     const Object& object_struct = scene->object(current_object_index);
     const pcl::PointCloud<pcl::PointXYZRGB>& cloud = *object_struct.cloud;
-    Sophus::SE3f camera_RT_object =
-        render_widget_->camera_T_world() *
-        object_struct.global_T_object;
-    Eigen::Matrix3f camera_R_object = camera_RT_object.so3().matrix();
-    Eigen::Vector3f camera_T_object = camera_RT_object.translation();
+    Sophus::Sim3f camera_RsT_object(
+        render_widget_->camera_T_world().matrix() *
+        object_struct.global_T_object.matrix());
+    Eigen::Matrix3f camera_Rs_object = camera_RsT_object.rxso3().matrix();
+    Eigen::Vector3f camera_T_object = camera_RsT_object.translation();
     camera::PinholeCamera render_camera = render_widget_->render_camera();
     float max_depth = render_widget_->max_depth();
     float min_depth = render_widget_->min_depth();
@@ -89,7 +89,7 @@ bool SetUpDirectionTool::mousePressEvent(QMouseEvent* event) {
     float best_distance = std::numeric_limits<float>::infinity();
     std::size_t best_point_index = 0;
     for (std::size_t point_index = 0, size = cloud.size(); point_index < size; ++ point_index) {
-      Eigen::Vector3f camera_point = camera_R_object * cloud.at(point_index).getVector3fMap() + camera_T_object;
+      Eigen::Vector3f camera_point = camera_Rs_object * cloud.at(point_index).getVector3fMap() + camera_T_object;
       if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
         Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
             camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));
@@ -156,17 +156,17 @@ void SetUpDirectionTool::paintEvent(QPainter* qpainter) {
   Scene* scene = render_widget_->scene();
   int current_object_index = render_widget_->current_object_index();
   const Object& object_struct = scene->object(current_object_index);
-  Sophus::SE3f camera_RT_object =
-      render_widget_->camera_T_world() *
-      object_struct.global_T_object;
-  Eigen::Matrix3f camera_R_object = camera_RT_object.so3().matrix();
-  Eigen::Vector3f camera_T_object = camera_RT_object.translation();
+  Sophus::Sim3f camera_RsT_object(
+      render_widget_->camera_T_world().matrix() *
+      object_struct.global_T_object.matrix());
+  Eigen::Matrix3f camera_Rs_object = camera_RsT_object.rxso3().matrix();
+  Eigen::Vector3f camera_T_object = camera_RsT_object.translation();
   camera::PinholeCamera render_camera = render_widget_->render_camera();
   float max_depth = render_widget_->max_depth();
   float min_depth = render_widget_->min_depth();
   for (const Eigen::Vector3f& point : points_) {
     // Project to display.
-    Eigen::Vector3f camera_point = camera_R_object * point + camera_T_object;
+    Eigen::Vector3f camera_point = camera_Rs_object * point + camera_T_object;
     if (camera_point.z() >= min_depth && camera_point.z() <= max_depth) {
       Eigen::Vector2f pxy = render_camera.NormalizedToImage(Eigen::Vector2f(
           camera_point.x() / camera_point.z(), camera_point.y() / camera_point.z()));

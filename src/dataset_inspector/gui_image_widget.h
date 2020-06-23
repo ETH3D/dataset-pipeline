@@ -126,6 +126,8 @@ class ImageWidget : public QWidget
   
   void SetShowMask(bool show_mask);
 
+  void SetMaxOccDepth(float max_occ_depth);
+
   virtual QSize sizeHint() const;
   
   inline int display_image_scale() const { return display_image_scale_; }
@@ -217,6 +219,7 @@ class ImageWidget : public QWidget
   // Cached occlusion depth map data.
   int occlusion_map_image_id_;
   int occlusion_map_image_scale_;
+  float max_occ_depth_; // For vizualisation purpose
   cv::Mat_<uint8_t> occlusion_depth_map_;
   
   // Cached depth map data.

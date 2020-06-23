@@ -41,14 +41,6 @@
 
 namespace opt {
 
-typedef Eigen::Vector3i VoxelCoordinate;
-
-}  // namespace opt
-
-MAKE_HASHABLE(opt::VoxelCoordinate, t.x(), t.y(), t.z())
-
-namespace opt {
-
 void MergeClosePoints(float merge_distance,
                       int num_scans,
                       const pcl::PointCloud<pcl::PointXYZ>::Ptr& in_points,

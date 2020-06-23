@@ -51,9 +51,11 @@ int main(int argc, char** argv) {
   std::string scan_alignment_path;
   pcl::console::parse_argument(argc, argv, "--scan_alignment_path", scan_alignment_path);
   
-  std::string occlusion_mesh_paths;
-  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_paths", occlusion_mesh_paths);
-  std::vector<std::string> occlusion_mesh_paths_vector = util::SplitString(',', occlusion_mesh_paths);
+  std::string occlusion_mesh_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_path", occlusion_mesh_path);
+
+  std::string occlusion_splats_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_splats_path", occlusion_splats_path);
   
   std::string multi_res_point_cloud_directory_path;
   pcl::console::parse_argument(argc, argv, "--multi_res_point_cloud_directory_path", multi_res_point_cloud_directory_path);
@@ -72,27 +74,40 @@ int main(int argc, char** argv) {
   for (const std::string& id_to_ignore : camera_ids_to_ignore_split) {
     camera_ids_to_ignore.insert(atoi(id_to_ignore.c_str()));
   }
+
+  float max_occ_depth = 20.f;
+  pcl::console::parse_argument(argc, argv, "--occlusion_depth_saturation", max_occ_depth);
   
   opt::GlobalParameters().SetFromArguments(argc, argv);
   
   
   // Verify arguments.
   if (scan_alignment_path.empty() ||
-      occlusion_mesh_paths.empty() ||
-      multi_res_point_cloud_directory_path.empty() ||
       image_base_path.empty() ||
       state_path.empty()) {
     LOG(ERROR) << "Please specify all the required paths.";
     return EXIT_FAILURE;
   }
+
+  if(occlusion_mesh_path.empty() && occlusion_splats_path.empty()){
+    LOG(WARNING) << "No occlusion mesh specifed, "
+                 << "2D splats from the scan point cloud will be used.";
+  }
+
+  bool optimization_tools = !multi_res_point_cloud_directory_path.empty();
+  if(!optimization_tools){
+    LOG(WARNING) << "No multi resolution cloud path specified, "
+                << "Interface will not show cost points and optimization elements";
+  }
   
   // Run application.
   QApplication qapp(argc, argv);
   
-  dataset_inspector::MainWindow main_window(nullptr, Qt::WindowFlags());
+  dataset_inspector::MainWindow main_window(nullptr, Qt::WindowFlags(), optimization_tools, max_occ_depth);
   main_window.LoadDataset(
       scan_alignment_path,
-      occlusion_mesh_paths_vector,
+      occlusion_mesh_path,
+      occlusion_splats_path,
       multi_res_point_cloud_directory_path,
       image_base_path,
       state_path,

@@ -32,6 +32,7 @@
 
 #include <boost/filesystem.hpp>
 #include <sophus/se3.hpp>
+#include <sophus/sim3.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -50,7 +51,7 @@ struct MeshLabProjectMeshInfo {
   std::string filename;
   
   // Mesh-to-global transformation.
-  Sophus::SE3f global_T_mesh;
+  Sophus::Sim3f global_T_mesh;
   
   // Full transformation matrix (may not be a SE3 transformation after all).
   Eigen::Matrix4f global_T_mesh_full;
@@ -126,6 +127,36 @@ inline std::vector<typename pcl::PointCloud<PointT>::Ptr> PointCloudVectorFromMe
         *global_point_cloud,
         scan_info.global_T_mesh.matrix());
     result.push_back(global_point_cloud);
+  }
+  return result;
+}
+
+inline std::vector<typename pcl::PolygonMesh::Ptr> MeshVectorFromMeshLabMeshInfoVectors(
+    const io::MeshLabMeshInfoVector& mesh_infos,
+    const std::string& base_path) {
+  std::vector<typename pcl::PolygonMesh::Ptr> result;
+
+  for (const io::MeshLabProjectMeshInfo& scan_info : mesh_infos) {
+    std::string file_path =
+        boost::filesystem::path(scan_info.filename).is_absolute() ?
+        scan_info.filename :
+        (boost::filesystem::path(base_path) / scan_info.filename).string();
+
+    typename pcl::PolygonMesh local_mesh;
+    if (pcl::io::loadPLYFile(file_path, local_mesh) < 0) {
+      result.clear();
+      return result;
+    }
+
+    typename pcl::PolygonMesh::Ptr global_mesh(&local_mesh);
+    pcl::PointCloud<pcl::PointXYZ> mesh_vertex_cloud;
+    pcl::fromPCLPointCloud2(local_mesh.cloud, mesh_vertex_cloud);
+    pcl::transformPointCloud(
+        mesh_vertex_cloud,
+        mesh_vertex_cloud,
+        scan_info.global_T_mesh.matrix());
+    pcl::toPCLPointCloud2(mesh_vertex_cloud, local_mesh.cloud);
+    result.push_back(global_mesh);
   }
   return result;
 }
