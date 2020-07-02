@@ -154,6 +154,7 @@ bool OcclusionGeometry::AddMesh(pcl::PolygonMesh& cpu_mesh,
       return false;
     }
     opengl_context_initialized_ = true;
+    opengl::releaseOpenGLContext();
   }
   
   // Transfer the mesh to the GPU.
