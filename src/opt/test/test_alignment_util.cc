@@ -32,6 +32,7 @@
 #include <fstream>
 
 #include <boost/filesystem.hpp>
+#include <gtest/gtest.h>
 #include <glog/logging.h>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -212,8 +213,13 @@ bool ProcessOnePair(const ImagePairInfo& info,
   // Setup the point cloud.
   std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> scans = {colored_point_cloud};
   opt::VisibilityEstimator visibility_estimator(&problem);
+  boost::filesystem::path temp_directory_path = boost::filesystem::temp_directory_path();
+  boost::filesystem::path temp_base_directory_name = boost::filesystem::unique_path();
+  boost::filesystem::path temp_base_directory_path = temp_directory_path / temp_base_directory_name;
+  if(!boost::filesystem::create_directory(temp_base_directory_path))
+    return false;
   problem.SetScanGeometryAndInitialize(
-      scans, visibility_estimator, "", "", false);
+      scans, visibility_estimator, temp_base_directory_path.string(), "", false);
   
   // Optimize the state.
   const int kMaxIterations = 300;

@@ -501,7 +501,7 @@ void Test4FrameAlignment(
   
   // Optimize the state.
   const int kMaxIterations = 500;
-  constexpr float kMaxChangeConvergenceThreshold = 0;  // 1e-6f;
+  constexpr float kMaxChangeConvergenceThreshold = 1e-20f;  // 1e-6f;
   constexpr int kIterationsWithoutNewOptimumThreshold = 25;
   opt::Optimizer optimizer(problem.max_image_scale() - 1, /*cache_observations*/ false, &problem);
   double optimum_cost;
@@ -633,9 +633,9 @@ void Test4FrameAlignment(
 }  // namespace
 
 
-// TEST(Alignment, SimpleTwoFrame) {
-//   TestPairAlignment();
-// }
+TEST(Alignment, SimpleTwoFrame) {
+  TestPairAlignment();
+}
 
 // NOTE: Does not work.
 // TEST(Alignment, FourFrame_VariableColorsOnly) {
