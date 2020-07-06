@@ -19,6 +19,11 @@ endif()
 find_package(GMP REQUIRED)
 include_directories(${GMP_INCLUDE_DIRS})
 
+#OpenGL
+find_package(OpenGL REQUIRED)
+include_directories(${OPENGL_INCLUDE_DIRS})
+link_directories(${OPENGL_LIBRARY_DIRS})
+
 # GLEW
 find_package(GLEW REQUIRED)
 include_directories(${GLEW_INCLUDE_DIRS})
@@ -113,7 +118,7 @@ add_library(BaseLib
   src/opengl/renderer.cc
   src/opengl/mesh.cc
   src/opengl/opengl_util.cc
-  src/opengl/opengl_util_glx.cc
+  src/opengl/opengl_util_egl.cc
   src/opengl/shader_program_opengl.cc
   
   src/opt/color_optimizer.cc
@@ -131,7 +136,9 @@ add_library(BaseLib
   src/opt/visibility_estimator.cc
 )
 target_link_libraries(BaseLib
-  ${OpenCV_LIBS})
+  ${OpenCV_LIBS}
+  OpenGL::OpenGL
+  OpenGL::EGL)
 target_compile_options(BaseLib PRIVATE -Wno-sign-compare)
 set(BASE_LIB_LIBRARIES
   BaseLib
@@ -139,7 +146,10 @@ set(BASE_LIB_LIBRARIES
   ${Boost_LIBRARIES}
   ${PCL_LIBRARIES}
   glog
+  ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
+  OpenGL::OpenGL
+  OpenGL::EGL
   GL
   X11
 )

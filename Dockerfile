@@ -36,12 +36,12 @@ ENV PIPELINE_PATH=/dataset-pipeline/build
 # Test_Alignment and Test_Renderer need an X server
 # so we cannot run the tests on docker
 
-# RUN ${PIPELINE_PATH}/Test_Alignment
+RUN ${PIPELINE_PATH}/Test_Alignment
 RUN ${PIPELINE_PATH}/Test_Camera
 RUN ${PIPELINE_PATH}/Test_ICP
 RUN ${PIPELINE_PATH}/Test_Interpolation
 RUN ${PIPELINE_PATH}/Test_IntrinsicsAndPoseOptimizer
 RUN ${PIPELINE_PATH}/Test_MultiScalePointCloud
 RUN ${PIPELINE_PATH}/Test_Problem
-# RUN ${PIPELINE_PATH}/Test_Renderer
+RUN ${PIPELINE_PATH}/Test_Renderer
 
