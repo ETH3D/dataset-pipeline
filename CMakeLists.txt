@@ -146,12 +146,9 @@ set(BASE_LIB_LIBRARIES
   ${Boost_LIBRARIES}
   ${PCL_LIBRARIES}
   glog
-  ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
   OpenGL::OpenGL
   OpenGL::EGL
-  GL
-  X11
 )
 
 

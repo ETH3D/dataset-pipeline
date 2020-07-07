@@ -34,7 +34,7 @@ ENV PIPELINE_PATH=/dataset-pipeline/build
 
 # Tests
 
-RUN cd {PIPELINE_PATH} && ./Test_Alignment
+RUN cd ${PIPELINE_PATH} && ./Test_Alignment
 RUN ${PIPELINE_PATH}/Test_Camera
 RUN ${PIPELINE_PATH}/Test_ICP
 RUN ${PIPELINE_PATH}/Test_Interpolation
