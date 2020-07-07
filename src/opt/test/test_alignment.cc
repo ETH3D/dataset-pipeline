@@ -536,7 +536,7 @@ void Test4FrameAlignment(
       LOG(INFO) << "rig_image_set " << rig_image_set << ", camera_index " << camera_index << ":";
       for (int i = 0; i < 6; ++ i) {
         LOG(INFO) << "  Component " << i << " error: " << fabs(delta_vector[i]);
-        constexpr float kTestThreshold = 0.0013f;
+        constexpr float kTestThreshold = 0.0016f;
         EXPECT_LE(fabs(delta_vector[i]), kTestThreshold)
             << "Component " << i << " of log vector has a too large error.";
       }
