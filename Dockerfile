@@ -33,10 +33,8 @@ RUN rm -rf build \
 ENV PIPELINE_PATH=/dataset-pipeline/build
 
 # Tests
-# Test_Alignment and Test_Renderer need an X server
-# so we cannot run the tests on docker
 
-RUN ${PIPELINE_PATH}/Test_Alignment
+RUN cd {PIPELINE_PATH} && ./Test_Alignment
 RUN ${PIPELINE_PATH}/Test_Camera
 RUN ${PIPELINE_PATH}/Test_ICP
 RUN ${PIPELINE_PATH}/Test_Interpolation
