@@ -345,37 +345,37 @@ void Test4FrameAlignment(
   Sophus::SE3f perturbed_image_T_global[2][2];
   constexpr float kComponentPerturbation = 0.002f;
   
-//   // Random perturbation.
-//   std::uniform_real_distribution<> perturbation_distribution(
-//       -kComponentPerturbation, kComponentPerturbation);
-//   for (int rig_image_set = 0; rig_image_set < 2; ++ rig_image_set) {
-//     for (int camera_index = 0; camera_index < 2; ++ camera_index) {
-//       Eigen::Matrix<float, 6, 1> perturbation;
-//       for (int i = 0; i < 6; ++ i) {
-//         perturbation[i] = perturbation_distribution(generator);
-//       }
-//       Sophus::SE3f perturbation_transformation =
-//           Sophus::SE3f::exp(perturbation);
-//       perturbed_image_T_global[rig_image_set][camera_index] =
-//           perturbation_transformation *
-//           image_T_global[rig_image_set][camera_index];
-//     }
-//   }
+  // Random perturbation.
+  std::uniform_real_distribution<> perturbation_distribution(
+      -kComponentPerturbation, kComponentPerturbation);
+  for (int rig_image_set = 0; rig_image_set < 2; ++ rig_image_set) {
+    for (int camera_index = 0; camera_index < 2; ++ camera_index) {
+      Eigen::Matrix<float, 6, 1> perturbation;
+      for (int i = 0; i < 6; ++ i) {
+        perturbation[i] = perturbation_distribution(generator);
+      }
+      Sophus::SE3f perturbation_transformation =
+          Sophus::SE3f::exp(perturbation);
+      perturbed_image_T_global[rig_image_set][camera_index] =
+          perturbation_transformation *
+          image_T_global[rig_image_set][camera_index];
+    }
+  }
   
-//   // Per-image-set perturbation.
-//   for (int rig_image_set = 0; rig_image_set < 2; ++ rig_image_set) {
-//     float direction = 1.f; // (rig_image_set == 0) ? 1.f : -1.f;
-//     Sophus::SE3f perturbation_transformation;
-//     perturbation_transformation.translation()(0) =
-//         direction * kComponentPerturbation;
-//     perturbation_transformation.translation()(1) =
-//         direction * kComponentPerturbation;
-//     for (int camera_index = 0; camera_index < 2; ++ camera_index) {
-//       perturbed_image_T_global[rig_image_set][camera_index] =
-//           perturbation_transformation *
-//           image_T_global[rig_image_set][camera_index];
-//     }
-//   }
+  // Per-image-set perturbation.
+  for (int rig_image_set = 0; rig_image_set < 2; ++ rig_image_set) {
+    float direction = 1.f; // (rig_image_set == 0) ? 1.f : -1.f;
+    Sophus::SE3f perturbation_transformation;
+    perturbation_transformation.translation()(0) =
+        direction * kComponentPerturbation;
+    perturbation_transformation.translation()(1) =
+        direction * kComponentPerturbation;
+    for (int camera_index = 0; camera_index < 2; ++ camera_index) {
+      perturbed_image_T_global[rig_image_set][camera_index] =
+          perturbation_transformation *
+          image_T_global[rig_image_set][camera_index];
+    }
+  }
   
   // Per-camera perturbation.
   for (int camera_index = 0; camera_index < 2; ++ camera_index) {
@@ -501,7 +501,7 @@ void Test4FrameAlignment(
   
   // Optimize the state.
   const int kMaxIterations = 500;
-  constexpr float kMaxChangeConvergenceThreshold = 0;  // 1e-6f;
+  constexpr float kMaxChangeConvergenceThreshold = 1e-20f;  // 1e-6f;
   constexpr int kIterationsWithoutNewOptimumThreshold = 25;
   opt::Optimizer optimizer(problem.max_image_scale() - 1, /*cache_observations*/ false, &problem);
   double optimum_cost;
@@ -529,17 +529,17 @@ void Test4FrameAlignment(
       opt::Image* image = &problem.images_mutable()->at(
           image_ids[rig_image_set][camera_index]);
       result_image_T_global[rig_image_set][camera_index] = image->image_T_global;
-//       Sophus::SE3f delta_transformation =
-//           result_image_T_global[rig_image_set][camera_index] *
-//           image_T_global[rig_image_set][camera_index].inverse();
-//       Eigen::Matrix<float, 6, 1> delta_vector = delta_transformation.log();
-//       LOG(INFO) << "rig_image_set " << rig_image_set << ", camera_index " << camera_index << ":";
-//       for (int i = 0; i < 6; ++ i) {
-//         LOG(INFO) << "  Component " << i << " error: " << fabs(delta_vector[i]);
-        // constexpr float kTestThreshold = 0.0013f;
-        // EXPECT_LE(fabs(delta_vector[i]), kTestThreshold)
-        //     << "Component " << i << " of log vector has a too large error.";
-//       }
+      Sophus::SE3f delta_transformation =
+          result_image_T_global[rig_image_set][camera_index] *
+          image_T_global[rig_image_set][camera_index].inverse();
+      Eigen::Matrix<float, 6, 1> delta_vector = delta_transformation.log();
+      LOG(INFO) << "rig_image_set " << rig_image_set << ", camera_index " << camera_index << ":";
+      for (int i = 0; i < 6; ++ i) {
+        LOG(INFO) << "  Component " << i << " error: " << fabs(delta_vector[i]);
+        constexpr float kTestThreshold = 0.0016f;
+        EXPECT_LE(fabs(delta_vector[i]), kTestThreshold)
+            << "Component " << i << " of log vector has a too large error.";
+      }
     }
   }
   
@@ -583,7 +583,7 @@ void Test4FrameAlignment(
   }
   double mean_flow = flow_sum / flow_count;
   LOG(INFO) << "Mean optical flow: " << mean_flow;
-  EXPECT_LE(mean_flow, 0.06);
+  EXPECT_LE(mean_flow, 0.07);
   
   // Debug: render images from final poses.
   if (kShowDebugImages) {
@@ -633,9 +633,9 @@ void Test4FrameAlignment(
 }  // namespace
 
 
-// TEST(Alignment, SimpleTwoFrame) {
-//   TestPairAlignment();
-// }
+TEST(Alignment, SimpleTwoFrame) {
+  TestPairAlignment();
+}
 
 // NOTE: Does not work.
 // TEST(Alignment, FourFrame_VariableColorsOnly) {

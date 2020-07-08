@@ -28,7 +28,7 @@
 
 
 #include "opengl/opengl_util.h"
-#include "opengl/opengl_util_glx.h"
+#include "opengl/opengl_util_egl.h"
 
 #include <glog/logging.h>
 

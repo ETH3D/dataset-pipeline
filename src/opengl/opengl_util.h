@@ -53,10 +53,13 @@ struct OpenGLContext {
 // versions 1, 2, and 3. On Linux, no specific version is requested.
 bool InitializeOpenGLWindowless(int version, OpenGLContext* result);
 
-// Switches the current thread's OpenGL context to the given context, and
+// Switches the current thread's OpenGL context to the given EGL context, and
 // returns the previously active context. One context can be current to only
 // one thread at a time.
 OpenGLContext SwitchOpenGLContext(const OpenGLContext& context);
+
+// Make a void EGL context, so that a GLX context can take over, e.g. in a QOpenGLWidget
+void releaseOpenGLContext();
 
 // Tests whether a valid OpenGL context is current.
 bool IsOpenGLContextAvailable();
