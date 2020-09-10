@@ -31,7 +31,9 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <pcl/console/parse.h>
+#include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
+#include <zlib.h>
 
 #include "io/colmap_model.h"
 #include "opt/image.h"
@@ -49,8 +51,14 @@ void AccumulateScanObservationsForImage(
     const std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>& colored_scans,
     std::vector<std::vector<int>>* observation_counts) {
   cv::Mat_<float> occlusion_image = problem.occlusion_geometry().RenderDepthMap(
-      intrinsics, image, intrinsics.min_image_scale);
-  const cv::Mat_<uint8_t>& mask = image.mask_[0];
+      intrinsics, image, intrinsics.min_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
+  std::string image_mask_path = image.GetImageMaskPath();
+  cv::Mat_<uint8_t> mask;
+  if (boost::filesystem::exists(image_mask_path)) {
+    mask = cv::imread(image_mask_path, cv::IMREAD_ANYDEPTH);
+  }
   
   for (size_t scan_index = 0; scan_index < colored_scans.size(); ++ scan_index) {
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan = colored_scans[scan_index];
@@ -81,6 +89,7 @@ void CreateGroundTruthForImage(
     bool write_depth_maps,
     bool write_occlusion_depth,
     bool write_scan_renderings,
+    bool compress_depth_maps,
     int scan_point_radius,
     const Camera& highest_resolution_camera,
     const opt::Intrinsics& intrinsics,
@@ -115,28 +124,39 @@ void CreateGroundTruthForImage(
   
   // Render and save occlusion image.
   cv::Mat_<float> occlusion_image = problem.occlusion_geometry().RenderDepthMap(
-      intrinsics, image, intrinsics.min_image_scale);
+      intrinsics, image, intrinsics.min_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
   
   if (write_occlusion_depth) {
     std::string occlusion_depth_file_path =
         (boost::filesystem::path(output_occlusion_depth_folder_path) /
         image_path.filename()).string();
     CHECK(occlusion_image.isContinuous());
-    FILE* occlusion_depth_file = fopen(occlusion_depth_file_path.c_str(), "wb");
-    fwrite(occlusion_image.data, sizeof(float), occlusion_image.rows * occlusion_image.cols, occlusion_depth_file);
-    fclose(occlusion_depth_file);
+    if (compress_depth_maps){
+      occlusion_depth_file_path += ".gz";
+      gzFile occlusion_depth_file = gzopen(occlusion_depth_file_path.c_str(), "w8b");
+      gzwrite(occlusion_depth_file, occlusion_image.data, sizeof(float) * occlusion_image.rows * occlusion_image.cols);
+      gzclose(occlusion_depth_file);
+    }else{
+      FILE* occlusion_depth_file = fopen(occlusion_depth_file_path.c_str(), "wb");
+      fwrite(occlusion_image.data, sizeof(float), occlusion_image.rows * occlusion_image.cols, occlusion_depth_file);
+      fclose(occlusion_depth_file);
+    }
   }
   
   // Initialize scan rendering with image.
   cv::Mat_<cv::Vec3b> scan_rendering = cv::imread(image.file_path);
   
   cv::Mat_<float> gt_depth_map(occlusion_image.rows, occlusion_image.cols, std::numeric_limits<float>::infinity());
-  
-  const cv::Mat_<uint8_t>& mask = image.mask_[0];
+  std::string image_mask_path = image.GetImageMaskPath();
+  cv::Mat_<uint8_t> mask;
+  if (boost::filesystem::exists(image_mask_path)) {
+    mask = cv::imread(image_mask_path, cv::IMREAD_ANYDEPTH);
+  }
   for (size_t scan_index = 0; scan_index < colored_scans.size(); ++ scan_index) {
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan = colored_scans[scan_index];
     const std::vector<int>& scan_observation_counts = observation_counts.at(scan_index);
-    
     for (size_t scan_point_index = 0; scan_point_index < scan->size(); ++ scan_point_index) {
       if (scan_observation_counts[scan_point_index] < 2) {
         continue;
@@ -152,17 +172,20 @@ void CreateGroundTruthForImage(
             ix < highest_resolution_camera.width() && iy < highest_resolution_camera.height() &&
             occlusion_image(iy, ix) + opt::GlobalParameters().occlusion_depth_threshold >= image_point.z() &&
             (mask.empty() || mask(iy, ix) != opt::MaskType::kEvalObs)) {
-          // The scan point is visible and observed in at least 2 images.
-          int min_x = std::max(0, ix - scan_point_radius);
-          int min_y = std::max(0, iy - scan_point_radius);
-          int end_x = std::min(highest_resolution_camera.width(), ix + scan_point_radius + 1);
-          int end_y = std::min(highest_resolution_camera.height(), iy + scan_point_radius + 1);
-          for (int y = min_y; y < end_y; ++ y) {
-            for (int x = min_x; x < end_x; ++ x) {
-              scan_rendering(y, x) = cv::Vec3b(point.b, point.g, point.r);
+          if(write_scan_renderings){
+            // The scan point is visible and observed in at least 2 images.
+            int min_x = std::max(0, ix - scan_point_radius);
+            int min_y = std::max(0, iy - scan_point_radius);
+            int end_x = std::min(highest_resolution_camera.width(), ix + scan_point_radius + 1);
+            int end_y = std::min(highest_resolution_camera.height(), iy + scan_point_radius + 1);
+            for (int y = min_y; y < end_y; ++ y) {
+              for (int x = min_x; x < end_x; ++ x) {
+                scan_rendering(y, x) = cv::Vec3b(point.b, point.g, point.r);
+              }
             }
           }
-          gt_depth_map(iy, ix) = std::min(gt_depth_map(iy, ix), image_point.z());
+          if (write_depth_maps)
+            gt_depth_map(iy, ix) = std::min(gt_depth_map(iy, ix), image_point.z());
         }
       }
     }
@@ -180,9 +203,16 @@ void CreateGroundTruthForImage(
         (boost::filesystem::path(output_ground_truth_depth_folder_path) /
         image_path.filename()).string();
     CHECK(gt_depth_map.isContinuous());
-    FILE* ground_truth_depth_file = fopen(ground_truth_depth_file_path.c_str(), "wb");
-    fwrite(gt_depth_map.data, sizeof(float), gt_depth_map.rows * gt_depth_map.cols, ground_truth_depth_file);
-    fclose(ground_truth_depth_file);
+    if (compress_depth_maps){
+      ground_truth_depth_file_path += ".gz";
+      gzFile ground_truth_depth_file = gzopen(ground_truth_depth_file_path.c_str(), "w8b");
+      gzwrite(ground_truth_depth_file, gt_depth_map.data, sizeof(float) * gt_depth_map.rows * gt_depth_map.cols);
+      gzclose(ground_truth_depth_file);
+    }else{
+      FILE* ground_truth_depth_file = fopen(ground_truth_depth_file_path.c_str(), "wb");
+      fwrite(gt_depth_map.data, sizeof(float), gt_depth_map.rows * gt_depth_map.cols, ground_truth_depth_file);
+      fclose(ground_truth_depth_file);
+    }
   }
 }
 
@@ -197,9 +227,11 @@ int main(int argc, char** argv) {
   std::string scan_alignment_path;
   pcl::console::parse_argument(argc, argv, "--scan_alignment_path", scan_alignment_path);
   
-  std::string occlusion_mesh_paths;
-  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_paths", occlusion_mesh_paths);
-  std::vector<std::string> occlusion_mesh_paths_vector = util::SplitString(',', occlusion_mesh_paths);
+  std::string occlusion_mesh_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_path", occlusion_mesh_path);
+
+  std::string occlusion_splats_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_splats_path", occlusion_splats_path);
   
   std::string image_base_path;
   pcl::console::parse_argument(argc, argv, "--image_base_path", image_base_path);
@@ -224,6 +256,8 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "--write_occlusion_depth", write_occlusion_depth);
   bool write_scan_renderings = false;
   pcl::console::parse_argument(argc, argv, "--write_scan_renderings", write_scan_renderings);
+  bool compress_depth_maps = false;
+  pcl::console::parse_argument(argc, argv, "--compress_depth_maps", compress_depth_maps);
   
   opt::GlobalParameters().SetFromArguments(argc, argv);
   
@@ -249,45 +283,45 @@ int main(int argc, char** argv) {
     
     // Correct scans.
     for (size_t i = 0; i < scan_infos.size(); ++ i) {
-      scan_infos[i].global_T_mesh = first_scan_up_transformation * scan_infos[i].global_T_mesh;
+      scan_infos[i].global_T_mesh = Sophus::Sim3f(first_scan_up_transformation.matrix() * scan_infos[i].global_T_mesh.matrix());
       scan_infos[i].global_T_mesh_full = scan_infos[i].global_T_mesh.matrix();
-      for (size_t p = 0; p < colored_scans[i]->size(); ++ p) {
-        colored_scans[i]->at(p).getVector3fMap() = first_scan_up_rotation * colored_scans[i]->at(p).getVector3fMap() + first_scan_up_translation;
-      }
-    }
-  }
-  
-  // Create occlusion geometry.
-  pcl::PointCloud<pcl::PointXYZ>::Ptr occlusion_point_cloud(
-      new pcl::PointCloud<pcl::PointXYZ>());
-  size_t total_point_count = 0;
-  for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
-    total_point_count += scan_cloud->size();
-  }
-  occlusion_point_cloud->resize(total_point_count);
-  size_t occlusion_point_index = 0;
-  for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
-    for (size_t scan_point_index = 0; scan_point_index < scan_cloud->size(); ++ scan_point_index) {
-      occlusion_point_cloud->at(occlusion_point_index).getVector3fMap() =
-          scan_cloud->at(scan_point_index).getVector3fMap();
-      ++ occlusion_point_index;
-    }
-  }
-  
-  if (rotate_first_scan_upright) {
-    // Correct occlusion point cloud.
-    for (size_t p = 0; p < occlusion_point_cloud->size(); ++ p) {
-      occlusion_point_cloud->at(p).getVector3fMap() = first_scan_up_rotation * occlusion_point_cloud->at(p).getVector3fMap() + first_scan_up_translation;
+      pcl::transformPointCloud(*colored_scans[i], *colored_scans[i], first_scan_up_transformation.matrix());
     }
   }
   
   // Create occlusion geometry and allocate optimization problem object.
   std::shared_ptr<opt::OcclusionGeometry> occlusion_geometry(new opt::OcclusionGeometry());
-  if (occlusion_mesh_paths_vector.empty()) {
+  if (occlusion_mesh_path.empty()) {
+    // Create splats from scan points.
+    pcl::PointCloud<pcl::PointXYZ>::Ptr occlusion_point_cloud(
+        new pcl::PointCloud<pcl::PointXYZ>());
+    size_t total_point_count = 0;
+    for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
+      total_point_count += scan_cloud->size();
+    }
+    occlusion_point_cloud->resize(total_point_count);
+    size_t occlusion_point_index = 0;
+    for (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& scan_cloud : colored_scans) {
+      for (size_t scan_point_index = 0; scan_point_index < scan_cloud->size(); ++ scan_point_index) {
+        occlusion_point_cloud->at(occlusion_point_index).getVector3fMap() =
+            scan_cloud->at(scan_point_index).getVector3fMap();
+        ++ occlusion_point_index;
+      }
+    }
+    
+    if (rotate_first_scan_upright) {
+      // Correct occlusion point cloud.
+      pcl::transformPointCloud(*occlusion_point_cloud, *occlusion_point_cloud, first_scan_up_transformation.matrix());
+    }
     occlusion_geometry->SetSplatPoints(occlusion_point_cloud);
   } else {
-    for (const std::string& mesh_file_path : occlusion_mesh_paths_vector) {
-      occlusion_geometry->AddMesh(mesh_file_path, first_scan_up_transformation);
+    if (!occlusion_mesh_path.empty()){
+      LOG(INFO) << "Loading Occlusion mesh";
+      occlusion_geometry->AddMesh(occlusion_mesh_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));
+    }
+    if (!occlusion_splats_path.empty()){
+      LOG(INFO) << "Loading Occlusion splats";
+      occlusion_geometry->AddSplats(occlusion_splats_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));
     }
   }
   
@@ -306,16 +340,17 @@ int main(int argc, char** argv) {
     // Correct problem state (camera poses).
     for (auto& id_and_image : *problem.images_mutable()) {
       opt::Image* image = &id_and_image.second;
-      image->global_T_image = first_scan_up_transformation * image->global_T_image;
+      image->global_T_image = Sophus::SE3f(first_scan_up_transformation.matrix() * image->global_T_image.matrix());
       image->image_T_global = image->global_T_image.inverse();
     }
   }
   
-  problem.InitializeImages(image_base_path);
+  problem.InitializeImages();
   
   boost::filesystem::create_directories(output_folder_path);
   
   // Output the (potentially rotated) camera parameters.
+  LOG(INFO) << "Writing COLMAP state file ...";
   boost::filesystem::path calibration_path = boost::filesystem::path(output_folder_path) / "calibration";
   boost::filesystem::create_directories(calibration_path);
   io::ExportProblemToColmap(
@@ -326,6 +361,7 @@ int main(int argc, char** argv) {
       /*write_project*/ false,
       calibration_path.string(),
       nullptr);
+  LOG(INFO) << "Done.";
   
   // Count observations of each scan point.
   // Indexed by: [scan_index][scan_point_index].
@@ -333,8 +369,21 @@ int main(int argc, char** argv) {
   for (size_t scan_index = 0; scan_index < colored_scans.size(); ++ scan_index) {
     observation_counts[scan_index].resize(colored_scans[scan_index]->size(), 0);
   }
-  for (const auto& id_and_image : problem.images()) {
-    const opt::Image& image = id_and_image.second;
+  int current_image = 0;
+  LOG(INFO) << "Count observations of each scan point, dismiss images with less than 2 scan point";
+
+  std::vector<int> image_ids;
+  const std::size_t images_nb = problem.images().size();
+  image_ids.reserve(images_nb);
+  for(const auto& id_and_image: problem.images()){
+    image_ids.push_back(id_and_image.first);
+  }
+
+  #pragma omp parallel for
+  for(size_t i=0; i<images_nb;i++){
+    const opt::Image& image = problem.image(image_ids[i]);
+    #pragma omp critical
+    std::cout << "Image [" << ++current_image << "/" << images_nb << "]\r" << std::flush;
     const opt::Intrinsics& intrinsics = problem.intrinsics(image.intrinsics_id);
     const camera::CameraBase& highest_resolution_camera =
             *intrinsics.model(0);
@@ -348,15 +397,18 @@ int main(int argc, char** argv) {
             colored_scans,
             &observation_counts));
   }
+  LOG(INFO) << "Done.";
   
   // Create evaluation point clouds from scan point clouds, dropping all points
   // which are not visible in at least 2 images.
   if (write_point_cloud) {
+    LOG(INFO) << "Writing Point Cloud ...";
     std::string output_points_folder_path =
         (boost::filesystem::path(output_folder_path) /
         boost::filesystem::path("points")).string();
     boost::filesystem::create_directories(output_points_folder_path);
     io::MeshLabMeshInfoVector out_info_vector = scan_infos;
+    #pragma omp parallel for
     for (size_t scan_index = 0; scan_index < scan_infos.size(); ++ scan_index) {
       const io::MeshLabProjectMeshInfo& scan_info = scan_infos[scan_index];
       const std::vector<int>& scan_observation_counts = observation_counts[scan_index];
@@ -367,7 +419,7 @@ int main(int argc, char** argv) {
           (boost::filesystem::path(scan_alignment_path).parent_path() / scan_info.filename).string();
       pcl::PointCloud<pcl::PointXYZ> point_cloud;
       if (pcl::io::loadPLYFile(file_path, point_cloud) < 0) {
-        return false;
+        continue;
       }
       
       pcl::PointCloud<pcl::PointXYZ> trimmed_point_cloud;
@@ -391,13 +443,24 @@ int main(int argc, char** argv) {
         (boost::filesystem::path(output_points_folder_path) /
         "scan_alignment.mlp").string();
     WriteMeshLabProject(output_points_alignment_file_path, out_info_vector);
+    LOG(INFO) << "Done.";
   }
   
   // Create ground truth depth maps, occlusion depth maps, and scan renderings
   // for all images.
   if (write_depth_maps || write_occlusion_depth || write_scan_renderings) {
-    for (const auto& id_and_image : problem.images()) {
-      const opt::Image& image = id_and_image.second;
+    if(write_depth_maps)
+      LOG(INFO) << "Writing depth maps ...";
+    if(write_occlusion_depth)
+      LOG(INFO) << "Writing occlusion depth maps ...";
+    if(write_scan_renderings)
+      LOG(INFO) << "Writing scan renderings ...";
+    int current_image = 0;
+    #pragma omp parallel for
+    for (std::size_t i = 0; i< images_nb; ++i){
+      #pragma omp critical
+      std::cout << "Image [" << ++current_image << "/" << images_nb << "]\r" << std::flush;
+      const opt::Image& image = problem.image(image_ids[i]);
       const opt::Intrinsics& intrinsics = problem.intrinsics(image.intrinsics_id);
       const camera::CameraBase& highest_resolution_camera =
               *intrinsics.model(0);
@@ -407,6 +470,7 @@ int main(int argc, char** argv) {
               write_depth_maps,
               write_occlusion_depth,
               write_scan_renderings,
+              compress_depth_maps,
               scan_point_radius,
               _highest_resolution_camera,
               intrinsics,
@@ -416,6 +480,7 @@ int main(int argc, char** argv) {
               observation_counts,
               output_folder_path));
     }
+    LOG(INFO) << "Done.";
   }
   
   return EXIT_SUCCESS;

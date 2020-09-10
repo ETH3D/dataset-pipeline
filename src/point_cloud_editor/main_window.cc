@@ -33,7 +33,7 @@
 #include <pcl/io/ply_io.h>
 #include <QBoxLayout>
 #include <QComboBox>
-#include <QGLWidget>
+#include <QOpenGLWidget>
 #include <QWidget>
 #include <QMessageBox>
 #include <QStatusBar>
@@ -63,14 +63,7 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags flags)
   
   setWindowTitle("PointCloudEditor");
   
-  // Create the render widget at the beginning since it may be needed by
-  // functions called during the initialization.
-  QGLFormat format = QGLFormat::defaultFormat();
-  format.setSampleBuffers(true);
-  if (format.samples() < 4) {
-    format.setSamples(4);
-  }
-  render_widget_ = new RenderWidget(format, &scene_);
+  render_widget_ = new RenderWidget(&scene_);
   render_widget_->SetDisplayLabelColors(true);
   
   

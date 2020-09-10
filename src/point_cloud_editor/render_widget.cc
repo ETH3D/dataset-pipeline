@@ -40,8 +40,8 @@
 
 namespace point_cloud_editor {
 
-RenderWidget::RenderWidget(QGLFormat format, Scene* scene, QWidget* parent)
-    : QGLWidget(format, parent) {
+RenderWidget::RenderWidget(Scene* scene, QWidget* parent)
+    : QOpenGLWidget(parent) {
   closed_ = false;
   
   scene_ = scene;
@@ -340,12 +340,10 @@ void RenderWidget::initializeGL() {
   CreateMeshShader();
 }
 
-void RenderWidget::paintEvent(QPaintEvent* event) {
+void RenderWidget::paintGL() {
   if (closed_) {
     return;
   }
-  
-  makeCurrent();
   
   // Save states for QPainter.
   glMatrixMode(GL_MODELVIEW);
@@ -393,8 +391,6 @@ void RenderWidget::paintEvent(QPaintEvent* event) {
     current_tool_->paintEvent(&painter);
   }
   painter.end();
-  
-  doneCurrent();
 }
 
 void RenderWidget::resizeGL(int width, int height) {

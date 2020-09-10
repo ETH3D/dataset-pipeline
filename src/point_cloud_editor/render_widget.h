@@ -32,7 +32,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <sophus/se3.hpp>
-#include <QGLWidget>
+#include <QOpenGLWidget>
 #include <QPaintEvent>
 #include <QSize>
 #include <QWidget>
@@ -45,10 +45,10 @@
 namespace point_cloud_editor {
 
 // Widget to render objects.
-class RenderWidget : public QGLWidget {
+class RenderWidget : public QOpenGLWidget {
  Q_OBJECT
  public:
-  RenderWidget(QGLFormat format, Scene* scene, QWidget* parent = 0);
+  RenderWidget(Scene* scene, QWidget* parent = 0);
   ~RenderWidget();
 
   QSize sizeHint() const override;
@@ -91,7 +91,7 @@ class RenderWidget : public QGLWidget {
   
  protected:
   virtual void initializeGL() override;
-  virtual void paintEvent(QPaintEvent *event) override;
+  virtual void paintGL() override;
   virtual void resizeGL(int width, int height) override;
   virtual void mousePressEvent(QMouseEvent* event) override;
   virtual void mouseDoubleClickEvent(QMouseEvent* event) override;

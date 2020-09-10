@@ -32,6 +32,7 @@
 
 #include <GL/glew.h>
 #include <GL/gl.h>
+#include <sophus/sim3.hpp>
 #include <sophus/se3.hpp>
 
 #include "camera/camera_models.h"
@@ -304,6 +305,9 @@ class Renderer {
   ~Renderer();
   
   void BeginRendering(
+      const Sophus::Sim3f& transformation,
+      const camera::CameraBase& camera, float min_depth, float max_depth);
+  void BeginRendering(
       const Sophus::SE3f& transformation,
       const camera::CameraBase& camera, float min_depth, float max_depth);
   void RenderTriangleList(
@@ -321,6 +325,10 @@ class Renderer {
 
  private:
   void CreateFrameBufferObject();
+
+  void SetupProjection(
+      const Sophus::Sim3f& transformation, const camera::CameraBase& camera,
+      float min_depth, float max_depth);
 
   void SetupProjection(
       const Sophus::SE3f& transformation, const camera::CameraBase& camera,

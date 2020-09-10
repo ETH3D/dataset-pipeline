@@ -66,7 +66,9 @@ void VisibilityEstimator::AppendObservationsForImage(
   const camera::CameraBase& camera_base =
       *intrinsics.model(best_available_image_scale);
   cv::Mat_<float> occlusion_image = problem_->occlusion_geometry().RenderDepthMap(
-      intrinsics, image, best_available_image_scale);
+      intrinsics, image, best_available_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
   
   observations->resize(problem_->point_scale_count());
   bool had_many_observations = false;
@@ -99,7 +101,9 @@ void VisibilityEstimator::AppendObservationsForImage(
   int best_available_image_scale =
       intrinsics.best_available_image_scale(std::max(GlobalParameters().min_occlusion_check_image_scale, problem_->current_image_scale()));
   cv::Mat_<float> occlusion_image = occlusion_geometry.RenderDepthMap(
-      intrinsics, image, best_available_image_scale);
+      intrinsics, image, best_available_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
   
   const camera::CameraBase& camera_base =
       *intrinsics.model(best_available_image_scale);
@@ -120,7 +124,9 @@ void VisibilityEstimator::AppendObservationsForImageNoScale(
   int best_available_image_scale =
       intrinsics.best_available_image_scale(std::max(GlobalParameters().min_occlusion_check_image_scale, problem_->current_image_scale()));
   cv::Mat_<float> occlusion_image = occlusion_geometry.RenderDepthMap(
-      intrinsics, image, best_available_image_scale);
+      intrinsics, image, best_available_image_scale,
+      opt::GlobalParameters().min_occlusion_depth,
+      opt::GlobalParameters().max_occlusion_depth);
   
   const camera::CameraBase& camera_base =
       *intrinsics.model(best_available_image_scale);

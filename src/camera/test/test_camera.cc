@@ -364,7 +364,7 @@ void TestParameterStorage() {
 
   float parameters[kNumParameters];
   for (int i = 0; i < kNumParameters; ++ i) {
-    parameters[i] = 10 * i;
+    parameters[i] = 1 + 10 * i;
   }
   Camera camera(10, 10, parameters);
 
@@ -433,7 +433,7 @@ TEST(Camera, SimplePinhole) {
 
 TEST(Camera, Radial) {
   camera::RadialCamera radial_camera(kImageWidth, kImageHeight,
-                                     kFX, kCX, kCY, -0.5*kK1, 0);
+                                     kFX, kCX, kCY, kK1, -1e-2);
   RunCameraModelTests(radial_camera);
 }
 

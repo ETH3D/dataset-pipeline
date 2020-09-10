@@ -138,7 +138,8 @@ class Problem {
   
   // Performs only the first part of SetScanGeometryAndInitialize(): Initializes
   // image scales and loads the images.
-  void InitializeImages(const std::string& image_base_path);
+  void InitializeImages();
+  void LoadImages(const std::string& image_base_path);
   
   // Removes all rigs, rig images and rig assignments.
   void RemoveRigs();

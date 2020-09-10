@@ -56,21 +56,17 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
     return normalized_point * child->DistortionFactor(normalized_point.squaredNorm());
   }
 
-  template <typename Derived1, typename Derived2>
-  inline Eigen::Vector2f IterativeUndistort(const Eigen::MatrixBase<Derived1>& distorted_point,
-                                            const Eigen::MatrixBase<Derived2>& starting_point, bool* converged) const {
+  inline float IterativeUndistort(const float distorted_r,
+                                            const float starting_r, bool* converged) const {
     const std::size_t kNumUndistortionIterations = 100;
     const Child* child = static_cast<const Child*>(this);
-
     // Gauss-Newton.
     const float kUndistortionEpsilon = 1e-10f;
     if (converged) {
       *converged = false;
     }
-    const float distorted_r2 = distorted_point.squaredNorm();
-    const float distorted_r = sqrt(distorted_r2);
-    float undistorted_r2 = starting_point.squaredNorm();
-    float undistorted_r = sqrt(undistorted_r2);
+    float undistorted_r = starting_r;
+    float undistorted_r2 = starting_r * starting_r;
     for (std::size_t i = 0; i < kNumUndistortionIterations; ++i) {
       float r_candidate = undistorted_r * child->DistortionFactor(undistorted_r2);
       // (Non-squared) residuals.
@@ -90,37 +86,88 @@ template <class Child> class RadialBase : public CameraBaseImpl<Child> {
       undistorted_r2 = undistorted_r * undistorted_r;
     }
 
-    return distorted_point * distorted_point.norm() / undistorted_r;
+    return  undistorted_r;
   }
 
-  // Find the lowest square radius such that the distortion derivative is 0,
-  // which will mean the distorted point is going back to the center.
-  inline void InitCutoff() {
-    const Child* child = static_cast<const Child*>(this);
-    constexpr float inf = std::numeric_limits<float>::infinity();
-    this->radius_cutoff_squared_ = inf;
-    float radius_squared = 0;
+  template <typename Derived1, typename Derived2>
+  inline Eigen::Vector2f IterativeUndistort(const Eigen::MatrixBase<Derived1>& distorted_point,
+                                            const Eigen::MatrixBase<Derived2>& starting_point, bool* converged) const {
+    const float undistorted_r = IterativeUndistort(distorted_point.norm(),
+                                                   starting_point.norm(),
+                                                   converged);
+    return distorted_point / distorted_point.norm() * undistorted_r;
+  }
 
-    const size_t kNumIterations = 100;
-    const float kMaxStepNorm = 1e-10;
-    const float kRelStepSize = 1e-6;
-    constexpr float eps = 1e-4;
-    float ddr;
+  // Tries to return the innermost undistorted point which maps to the given
+  // distorted point (as opposed to returning any undistorted point that maps
+  // correctly).
+  float UndistortFromInside(
+      const float distorted_radius,
+      bool* converged,
+      float* second_best_result,
+      bool* second_best_available) const {
+    constexpr int kNumGridSteps = 10;
+    constexpr float kGridHalfExtent = 1.5f;
+    constexpr float kImproveThreshold = 0.99f;
 
-    for (size_t i = 0; i < kNumIterations; ++i) {
-      const float step = std::max(eps,
-                                  abs(kRelStepSize * radius_squared));
-      ddr = (child->DistortedDerivativeByNormalized(radius_squared + step) - child-> DistortedDerivativeByNormalized(radius_squared))/step;
-      const float update_step = child->DistortedDerivativeByNormalized(radius_squared)/ddr;
-      radius_squared -= update_step;
-      if (abs(update_step) < kMaxStepNorm) {
-        break;
+    *converged = false;
+    *second_best_available = false;
+
+
+    float best_result = std::numeric_limits<float>::infinity();
+    *second_best_result = std::numeric_limits<float>::infinity();
+    float init_radius;
+
+    for (int i = 0; i < kNumGridSteps; ++ i) {
+      init_radius = distorted_radius + kGridHalfExtent * (i - 0.5 * kNumGridSteps) / (0.5f * kNumGridSteps);
+      bool test_converged;
+      float result = IterativeUndistort(distorted_radius, init_radius, &test_converged);
+      if (test_converged) {
+        if (result < kImproveThreshold * best_result) {
+          *second_best_result = best_result;
+          *second_best_available = *converged;
+          best_result = result;
+          *converged = true;
+        } else if (result > 1 / kImproveThreshold * best_result &&
+                    result < kImproveThreshold * *second_best_result) {
+          *second_best_result = result;
+          *second_best_available = true;
+        }
       }
     }
-    if(radius_squared > 0 && abs(child->DistortedDerivativeByNormalized(radius_squared)) < eps)
-      this->radius_cutoff_squared_ = radius_squared;
+
+    return best_result;
   }
 
-};
+    inline void InitCutoff() {
+    // Unproject some sample points at the image borders to find out where to
+    // stop projecting points that are too far out. Those might otherwise get
+    // projected into the image again at some point with certain distortion
+    // parameter settings.
 
+    // This is the same as general case, except we only test the furthermost corner point
+    constexpr float kIncreaseFactor = 1.01f;
+    constexpr float inf = std::numeric_limits<float>::infinity();
+    this->radius_cutoff_squared_ = inf;
+
+    bool converged;
+    float second_best_result = inf;
+    bool second_best_available;
+
+    float test_image_radius = this->ImageToDistorted(Eigen::Vector2f(0, 0)).norm();
+    test_image_radius = std::max(test_image_radius, this->ImageToDistorted(Eigen::Vector2f(0, this->height_)).norm());
+    test_image_radius = std::max(test_image_radius, this->ImageToDistorted(Eigen::Vector2f(this->width_, 0)).norm());
+    test_image_radius = std::max(test_image_radius, this->ImageToDistorted(Eigen::Vector2f(this->width_, this->height_)).norm());
+    const float r = this->UndistortFromInside(
+        test_image_radius,
+        &converged, &second_best_result, &second_best_available);
+    if (converged && r > 0) {
+      if(second_best_available && second_best_result > 0){
+        this->radius_cutoff_squared_ = std::min(r * r * kIncreaseFactor, second_best_result * second_best_result);
+      }else{
+        this->radius_cutoff_squared_ = r * r * kIncreaseFactor;
+      }
+    }
+  }
+};
 }  // namespace camera

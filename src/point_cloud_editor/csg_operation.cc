@@ -31,7 +31,7 @@
 
 #include <cork.h>
 #include <QMessageBox>
-#include <sophus/se3.hpp>
+#include <sophus/sim3.hpp>
 
 #include "point_cloud_editor/object.h"
 #include "point_cloud_editor/util.h"
@@ -74,7 +74,7 @@ void PerformCSGOperation(Scene* scene, CSGOperation operation, bool operate_on_s
   if (operate_on_submesh_of_2nd_mesh) {
     // Determine the bounding box of the second mesh in the first mesh's space.
     Eigen::AlignedBox3f mesh_bbox;
-    Sophus::SE3f first_TR_second = first_object->global_T_object.inverse() * second_object->global_T_object;
+    Sophus::Sim3f first_TR_second = first_object->global_T_object.inverse() * second_object->global_T_object;
     Eigen::Matrix3f first_R_second = first_TR_second.rotationMatrix();
     Eigen::Vector3f first_T_second = first_TR_second.translation();
     for (std::size_t i = 0; i < second_object->cloud->size(); ++ i) {

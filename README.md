@@ -125,7 +125,8 @@ For this example, the pipeline is run on the "terrace" DSLR training dataset of 
   mkdir dslr_calibration_jpg
   ${PIPELINE_PATH}/ImageRegistrator \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
       --image_base_path . \
       --state_path sparse_reconstruction_scaled/colmap_model \
@@ -137,7 +138,8 @@ For this example, the pipeline is run on the "terrace" DSLR training dataset of 
   ```
   ${PIPELINE_PATH}/ImageRegistrator \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
       --image_base_path . \
       --state_path dslr_calibration_jpg/scale_0.0625_state \
@@ -154,7 +156,8 @@ For this example, the pipeline is run on the "terrace" DSLR training dataset of 
   ```
   ${PIPELINE_PATH}/DatasetInspector \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
       --image_base_path . \
       --state_path dslr_calibration_jpg/scale_1_state
@@ -163,7 +166,8 @@ For this example, the pipeline is run on the "terrace" DSLR training dataset of 
   ```
   ${PIPELINE_PATH}/GroundTruthCreator \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --image_base_path . \
       --state_path dslr_calibration_jpg/scale_1_state \
       --output_folder_path ground_truth \
@@ -231,7 +235,8 @@ Most of the steps are identical to the previous example.
   mkdir rig_calibration
   ${PIPELINE_PATH}/ImageRegistrator \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
       --image_base_path . \
       --state_path sparse_reconstruction_scaled/colmap_model \
@@ -243,7 +248,8 @@ Most of the steps are identical to the previous example.
   ```
   ${PIPELINE_PATH}/ImageRegistrator \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlsuion_splats_path surface_reconstruction/splats.ply \
       --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
       --image_base_path . \
       --state_path dslr_calibration_jpg/scale_0.0625_state \
@@ -260,7 +266,8 @@ Most of the steps are identical to the previous example.
   ```
   ${PIPELINE_PATH}/DatasetInspector \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
       --image_base_path . \
       --state_path rig_calibration/scale_1_state
@@ -269,7 +276,8 @@ Most of the steps are identical to the previous example.
   ```
   ${PIPELINE_PATH}/GroundTruthCreator \
       --scan_alignment_path scan_clean/scan_alignment.mlp \
-      --occlusion_mesh_paths surface_reconstruction/surface.ply,surface_reconstruction/splats.ply \
+      --occlusion_mesh_path surface_reconstruction/surface.ply \
+      --occlusion_splats_path surface_reconstruction/splats.ply \
       --image_base_path . \
       --state_path rig_calibration/scale_1_state \
       --output_folder_path ground_truth \
@@ -742,7 +750,8 @@ The `DatasetInspector` can be run as in the following example:
 ```
 DatasetInspector \
     --scan_alignment_path scan_alignment.mlp \
-    --occlusion_mesh_paths surface.ply,splats.ply \
+    --occlusion_mesh_path surface.ply \
+    --occlusion_splats_path splats.ply \
     --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
     --image_base_path . \
     --state_path state_path
@@ -1011,7 +1020,8 @@ A typical invocation looks as in the following example:
 ```
 ImageRegistrator \
     --scan_alignment_path scan_alignment.mlp \
-    --occlusion_mesh_paths surface.ply,splats.ply \
+    --occlusion_mesh_path surface.ply \
+    --occlusion_splats_path splats.ply \
     --multi_res_point_cloud_directory_path multi_res_point_cloud_cache \
     --image_base_path . \
     --state_path colmap_model \
@@ -1060,7 +1070,8 @@ Usage of the tool is as in the following example:
 ```
 GroundTruthCreator \
     --scan_alignment_path scan_alignment.mlp \
-    --occlusion_mesh_paths surface.ply,splats.ply \
+    --occlusion_mesh_path surface.ply \
+    --occlusion_splats_path splats.ply \
     --image_base_path . \
     --state_path scale_1_state \
     --output_folder_path ground_truth \

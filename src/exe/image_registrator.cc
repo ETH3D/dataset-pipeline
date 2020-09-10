@@ -64,9 +64,11 @@ int main(int argc, char** argv) {
   std::string scan_alignment_path;
   pcl::console::parse_argument(argc, argv, "--scan_alignment_path", scan_alignment_path);
   
-  std::string occlusion_mesh_paths;
-  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_paths", occlusion_mesh_paths);
-  std::vector<std::string> occlusion_mesh_paths_vector = util::SplitString(',', occlusion_mesh_paths);
+  std::string occlusion_mesh_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_mesh_path", occlusion_mesh_path);
+
+  std::string occlusion_splats_path;
+  pcl::console::parse_argument(argc, argv, "--occlusion_splats_path", occlusion_splats_path);
   
   std::string multi_res_point_cloud_directory_path;
   pcl::console::parse_argument(argc, argv, "--multi_res_point_cloud_directory_path", multi_res_point_cloud_directory_path);
@@ -125,8 +127,8 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
   
-  if (occlusion_mesh_paths_vector.empty()) {
-    LOG(WARNING) << "No occlusion meshes given, using splats.";
+  if (occlusion_mesh_path.empty() && occlusion_splats_path.empty()) {
+    LOG(WARNING) << "No occlusion meshes given, using 2D splats.";
   }
   
   
@@ -160,12 +162,13 @@ int main(int argc, char** argv) {
   
   // Create occlusion geometry.
   std::shared_ptr<opt::OcclusionGeometry> occlusion_geometry(new opt::OcclusionGeometry());
-  if (occlusion_mesh_paths_vector.empty()) {
+  if (occlusion_mesh_path.empty() && occlusion_splats_path.empty()) {
     occlusion_geometry->SetSplatPoints(occlusion_point_cloud);
   } else {
-    for (const std::string& mesh_file_path : occlusion_mesh_paths_vector) {
-      occlusion_geometry->AddMesh(mesh_file_path);
-    }
+    if(!occlusion_mesh_path.empty())
+      occlusion_geometry->AddMesh(occlusion_mesh_path);
+    if(!occlusion_splats_path.empty())
+      occlusion_geometry->AddSplats(occlusion_splats_path);
   }
   
   // Allocate optimization problem object.
@@ -263,7 +266,8 @@ int main(int argc, char** argv) {
     // Write meta data.
     std::ofstream metadata_stream((boost::filesystem::path(state_path) / "metadata.txt").string(), std::ios::out);
     metadata_stream << "scan_alignment_path " << scan_alignment_path << std::endl;
-    metadata_stream << "occlusion_mesh_paths " << occlusion_mesh_paths << std::endl;
+    metadata_stream << "occlusion_mesh_path " << occlusion_mesh_path << std::endl;
+    metadata_stream << "occlusion_splats_path " << occlusion_splats_path << std::endl;
     metadata_stream << "multi_res_point_cloud_directory_path " << multi_res_point_cloud_directory_path << std::endl;
     metadata_stream << "image_base_path " << image_base_path << std::endl;
     metadata_stream << "state_path " << state_path << std::endl;
