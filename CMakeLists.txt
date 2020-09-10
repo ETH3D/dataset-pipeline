@@ -149,6 +149,7 @@ set(BASE_LIB_LIBRARIES
   ${GLEW_LIBRARIES}
   OpenGL::OpenGL
   OpenGL::EGL
+  OpenGL::GLX
 )
 
 
