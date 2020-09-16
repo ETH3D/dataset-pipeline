@@ -1,9 +1,9 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 WORKDIR /
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt install -y git libvtk6-dev libflann-dev libeigen3-dev libboost-all-dev cmake libgmp-dev libglew-dev libgoogle-glog-dev qt5-default libproj-dev libqwt-qt5-dev libpcl-dev
+RUN apt update && apt install -y git libflann-dev libeigen3-dev libboost-all-dev cmake libgmp-dev libglew-dev libgoogle-glog-dev qt5-default libproj-dev libqwt-qt5-dev libpcl-dev libopengl-dev
 RUN git clone https://github.com/laurentkneip/opengv.git
 RUN cd opengv \
   && mkdir build \
