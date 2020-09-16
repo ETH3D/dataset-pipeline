@@ -112,10 +112,11 @@ OpenGLContext SwitchOpenGLContextEGL(const OpenGLContext& context) {
 
   if (context.impl->needs_glew_initialization) {
     // Initialize GLEW on first switch to a context.
-    glewExperimental = GL_TRUE;
     GLenum glew_init_result = glewInit();
-    CHECK_EQ(static_cast<int>(glew_init_result), GLEW_OK);
-    glGetError();  // Ignore GL_INVALID_ENUM​ error caused by glew
+    // The GLEW ERROR NO GLX DISPLAY is bug happening in ubuntu20, ignoring this error
+    // seems fine as we now use EGL
+    CHECK_EQ(static_cast<int>(glew_init_result) == GLEW_OK ||
+             static_cast<int>(glew_init_result) == GLEW_ERROR_NO_GLX_DISPLAY, true);
     context.impl->needs_glew_initialization = false;
   }
 
