@@ -115,8 +115,12 @@ OpenGLContext SwitchOpenGLContextEGL(const OpenGLContext& context) {
     GLenum glew_init_result = glewInit();
     // The GLEW ERROR NO GLX DISPLAY is bug happening in ubuntu20, ignoring this error
     // seems fine as we now use EGL
+    #ifdef GLEW_ERROR_NO_GLX_DISPLAY
     CHECK_EQ(static_cast<int>(glew_init_result) == GLEW_OK ||
              static_cast<int>(glew_init_result) == GLEW_ERROR_NO_GLX_DISPLAY, true);
+    #else
+    CHECK_EQ(static_cast<int>(glew_init_result), GLEW_OK);
+    #endif
     context.impl->needs_glew_initialization = false;
   }
 

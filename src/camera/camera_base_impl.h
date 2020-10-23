@@ -144,7 +144,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
   template <typename Derived>
   inline Eigen::Vector2f NormalizedToTexture(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float r2 = normalized_point.squaredNorm();
-    if (isinf(r2) || r2 > radius_cutoff_squared_) {
+    if (std::isinf(r2) || r2 > radius_cutoff_squared_) {
       return normalized_point * std::numeric_limits<float>::infinity();
     }else{
       const Eigen::Vector2f distorted_point = static_cast<const Child*>(this)->Distort(normalized_point);
@@ -155,7 +155,7 @@ template <class Child> class CameraBaseImpl : public CameraBase {
   template <typename Derived>
   inline Eigen::Vector2f NormalizedToImage(const Eigen::MatrixBase<Derived>& normalized_point) const {
     const float r2 = normalized_point.squaredNorm();
-    if (isinf(r2) || r2 > radius_cutoff_squared_) {
+    if (std::isinf(r2) || r2 > radius_cutoff_squared_) {
       return normalized_point * std::numeric_limits<float>::infinity();
     }else{
       const Eigen::Vector2f distorted_point = static_cast<const Child*>(this)->Distort(normalized_point);
