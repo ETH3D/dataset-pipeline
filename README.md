@@ -41,19 +41,20 @@ Then all pipeline steps are described in detail below.
 
 # Building #
 
-Building was tested on Ubuntu 16.04 and 18.04.
+Building was tested on Ubuntu 18.04 and 16.04.
 It would be expected that later Ubuntu versions could also be used with little effort.
 
 The following external dependencies are required:
 
+* Eigen (>= 3.3)
 * GMP
 * GLEW
 * boost
 * glog
-* OpenCV
+* OpenCV (>= 4)
 * OpenGV
-* PCL
-* Qt
+* PCL (>=1.8)
+* Qt (>=5)
 
 OpenCV was used in version 4.1.2, for PCL version 1.8.1 was used and for Qt, version 5 was used.
 
@@ -67,7 +68,7 @@ make -j
 
 Note : Problems occur when running code on ubuntu18.04+ when PCL is built from source, but not when using `libpcl-dev` apt package.
 
-A Dockerfile is given to build everything from scratch in ubuntu 18.04.
+A Dockerfile is given to build everything from scratch in ubuntu 20.04.
 
 # Step-by-step example (individual images) #
 
