@@ -308,17 +308,10 @@ int main(int argc, char** argv) {
         ++ occlusion_point_index;
       }
     }
-    
-    if (rotate_first_scan_upright) {
-      // Correct occlusion point cloud.
-      pcl::transformPointCloud(*occlusion_point_cloud, *occlusion_point_cloud, first_scan_up_transformation.matrix());
-    }
     occlusion_geometry->SetSplatPoints(occlusion_point_cloud);
   } else {
-    if (!occlusion_mesh_path.empty()){
-      LOG(INFO) << "Loading Occlusion mesh";
-      occlusion_geometry->AddMesh(occlusion_mesh_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));
-    }
+    LOG(INFO) << "Loading Occlusion mesh";
+    occlusion_geometry->AddMesh(occlusion_mesh_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));
     if (!occlusion_splats_path.empty()){
       LOG(INFO) << "Loading Occlusion splats";
       occlusion_geometry->AddSplats(occlusion_splats_path, Sophus::Sim3f(first_scan_up_transformation.matrix()));

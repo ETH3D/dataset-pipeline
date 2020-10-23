@@ -30,6 +30,7 @@
 
 #include <thirdparty/tinyxml2/tinyxml2.h>
 #include <Eigen/Core>
+#include "opt/parameters.h"
 
 using namespace tinyxml2;
 
@@ -69,7 +70,11 @@ bool ReadMeshLabProject(const std::string& project_file_path, MeshLabMeshInfoVec
       mlmatrix44_stream >> M(2, 0) >> M(2, 1) >> M(2, 2) >> M(2, 3);
       mlmatrix44_stream >> M(3, 0) >> M(3, 1) >> M(3, 2) >> M(3, 3);
       new_mesh.global_T_mesh_full = M;
-      new_mesh.global_T_mesh = Sophus::Sim3f(M);
+      Sophus::Sim3f SimM = Sophus::Sim3f(M);
+      if (opt::GlobalParameters().scale_factor == 0){
+        opt::GlobalParameters().scale_factor = 1.f / SimM.scale();
+      }
+      new_mesh.global_T_mesh = Sophus::Sim3f(opt::GlobalParameters().scale_factor * M);
     } else {
       // Default-constructed transformation will be identity.
     }
@@ -101,10 +106,10 @@ bool WriteMeshLabProject(const std::string& project_file_path, const MeshLabMesh
     mlmatrix44_stream << std::endl;
     // The spaces at the end are important. If omitted, MeshLab will crash when
     // opening the file.
-    Eigen::Matrix3f R = mesh.global_T_mesh.rotationMatrix();
-    mlmatrix44_stream << R(0, 0) << " " << R(0, 1) << " " << R(0, 2) << " " << mesh.global_T_mesh.translation()(0) << " " << std::endl;
-    mlmatrix44_stream << R(1, 0) << " " << R(1, 1) << " " << R(1, 2) << " " << mesh.global_T_mesh.translation()(1) << " " << std::endl;
-    mlmatrix44_stream << R(2, 0) << " " << R(2, 1) << " " << R(2, 2) << " " << mesh.global_T_mesh.translation()(2) << " " << std::endl;
+    Eigen::Matrix<float, 3, 4> M = mesh.global_T_mesh.matrix3x4() / opt::GlobalParameters().scale_factor;
+    mlmatrix44_stream << M(0, 0) << " " << M(0, 1) << " " << M(0, 2) << " " << M(0, 3) << " " << std::endl;
+    mlmatrix44_stream << M(1, 0) << " " << M(1, 1) << " " << M(1, 2) << " " << M(1, 3) << " " << std::endl;
+    mlmatrix44_stream << M(2, 0) << " " << M(2, 1) << " " << M(2, 2) << " " << M(2, 3) << " " << std::endl;
     mlmatrix44_stream << "0 0 0 1 " << std::endl;
     xml_mlmatrix44->SetText(mlmatrix44_stream.str().c_str());
     xml_mlmesh->InsertEndChild(xml_mlmatrix44);

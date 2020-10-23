@@ -43,6 +43,7 @@
 
 #include "geometry/two_pass_normal_3d_omp.h"
 #include "io/meshlab_project.h"
+#include "opt/parameters.h"
 
 int main(int argc, char** argv) {
   FLAGS_logtostderr = 1;
@@ -197,12 +198,13 @@ int main(int argc, char** argv) {
     for (int point_index = 0; point_index < num_points; ++ point_index) {
       const pcl::PointXYZRGB& point = global_scan_cloud->at(point_index);
       const pcl::Normal& normal = cloud_normals->at(point_index);
+      const float scale = opt::GlobalParameters().scale_factor;
       
-      *(reinterpret_cast<float*>(output_pointer)) = point.x;
+      *(reinterpret_cast<float*>(output_pointer)) = point.x / scale;
       output_pointer += sizeof(float);
-      *(reinterpret_cast<float*>(output_pointer)) = point.y;
+      *(reinterpret_cast<float*>(output_pointer)) = point.y / scale;
       output_pointer += sizeof(float);
-      *(reinterpret_cast<float*>(output_pointer)) = point.z;
+      *(reinterpret_cast<float*>(output_pointer)) = point.z / scale;
       output_pointer += sizeof(float);
       *(reinterpret_cast<float*>(output_pointer)) = normal.normal_x;
       output_pointer += sizeof(float);

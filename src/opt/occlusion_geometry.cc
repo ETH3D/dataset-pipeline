@@ -79,7 +79,9 @@ bool OcclusionGeometry::AddMesh(const std::string& mesh_file_path,
   if(boost::filesystem::extension(mesh_file_path) == ".mlp"){
     return AddMeshMeshLab(mesh_file_path, transformation, compute_edges);
   }else if(boost::filesystem::extension(mesh_file_path) == ".ply"){
-    return AddMeshPLY(mesh_file_path, transformation, compute_edges);
+    const float scale = opt::GlobalParameters().scale_factor;
+    Sophus::Sim3f scale_transform = Sophus::Sim3f(Eigen::Matrix4f::Identity() * scale);
+    return AddMeshPLY(mesh_file_path, transformation * scale_transform, compute_edges);
   }else{
     LOG(ERROR) << "Mesh file format must be either .mlp or .ply, got " << mesh_file_path;
     return false;
@@ -201,6 +203,10 @@ cv::Mat_<float> OcclusionGeometry::RenderDepthMap(
             image,
             image_scale,
             _image_scale_camera));
+    if (kDebugShowDepthMaps) {
+      cv::imshow("Rendered depth image with 2D splats", depth_map / max_depth);
+      cv::waitKey(0);
+    }
     return depth_map;
   } else if (!meshes_.empty()) {
     // Render meshes.
@@ -240,7 +246,7 @@ cv::Mat_<float> OcclusionGeometry::RenderDepthMap(
     
     // Debug: show depth map.
     if (kDebugShowDepthMaps) {
-      cv::imshow("Rendered depth image without occlusion masking", depth_map / 8.f);
+      cv::imshow("Rendered depth image without occlusion masking", depth_map / max_depth);
       cv::waitKey(0);
     }
     if (mask_occlusion_boundaries) {
@@ -255,7 +261,7 @@ cv::Mat_<float> OcclusionGeometry::RenderDepthMap(
       
       // Debug: show depth map.
       if (kDebugShowDepthMaps) {
-        cv::imshow("Rendered depth image after near-occlusion discarding", depth_map_2 / 8.f);
+        cv::imshow("Rendered depth image after near-occlusion discarding", depth_map_2 / max_depth);
         cv::waitKey(0);
       }
       return depth_map_2;

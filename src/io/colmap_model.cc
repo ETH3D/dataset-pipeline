@@ -127,6 +127,11 @@ bool ReadColmapImages(const std::string& images_txt_path,
                  >> new_image->image_T_global.data()[6]
                  >> new_image->camera_id
                  >> new_image->file_path;
+    if(opt::GlobalParameters().scale_factor != 0){
+      new_image->image_T_global.translation() *= opt::GlobalParameters().scale_factor;
+    }else{
+      LOG(ERROR) << "Please load point clouds before images";
+    }
     new_image->global_T_image = new_image->image_T_global.inverse();
     
     // Read feature observations line.
@@ -158,14 +163,15 @@ bool WriteColmapImages(const std::string& images_txt_path, const ColmapImagePtrM
     const ColmapImage& colmap_image = *it->second;
     
     // Image with pose.
+    float scale = opt::GlobalParameters().scale_factor;
     images_file_stream << colmap_image.image_id
                        << " " << colmap_image.image_T_global.data()[3]
                        << " " << colmap_image.image_T_global.data()[0]
                        << " " << colmap_image.image_T_global.data()[1]
                        << " " << colmap_image.image_T_global.data()[2]
-                       << " " << colmap_image.image_T_global.data()[4]
-                       << " " << colmap_image.image_T_global.data()[5]
-                       << " " << colmap_image.image_T_global.data()[6]
+                       << " " << colmap_image.image_T_global.data()[4] / scale
+                       << " " << colmap_image.image_T_global.data()[5] / scale
+                       << " " << colmap_image.image_T_global.data()[6] / scale
                        << " " << colmap_image.camera_id
                        << " " << colmap_image.file_path << std::endl;
     

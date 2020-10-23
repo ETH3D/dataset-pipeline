@@ -61,6 +61,7 @@ struct Parameters {
     max_occlusion_depth = 100.f;
 
     splat_radius = 0.03f; //3cm
+    scale_factor = 0; // 0 means that it will be replaced by inverse of first point cloud transform scale
     
     min_radius_bias = 1.05f;
     merge_distance_factor = 4.0f;
@@ -95,6 +96,7 @@ struct Parameters {
     pcl::console::parse_argument(argc, argv, "--min_occlusion_depth", min_occlusion_depth);
 
     pcl::console::parse_argument(argc, argv, "--splat_radius", splat_radius);
+    pcl::console::parse_argument(argc, argv, "--scale_factor", scale_factor);
     
     pcl::console::parse_argument(argc, argv, "--min_radius_bias", min_radius_bias);
     pcl::console::parse_argument(argc, argv, "--merge_distance_factor", merge_distance_factor);
@@ -119,6 +121,7 @@ struct Parameters {
     stream << "max_occlusion_depth" << max_occlusion_depth << std::endl;
     stream << "min_occlusion_depth" << min_occlusion_depth << std::endl;
     stream << "splat_radius" << splat_radius << std::endl;
+    stream << "scale_factor" << scale_factor << std::endl;
     stream << "min_radius_bias " << min_radius_bias << std::endl;
     stream << "merge_distance_factor " << merge_distance_factor << std::endl;
   }
@@ -198,6 +201,11 @@ struct Parameters {
 
   // Radius of splats, used for depth renderings, and occlusion boundaries, in meters
   float splat_radius;
+
+  // scale factor to apply to all the transformations.
+  // By default, the inverse scale of the first point cloud in the mlp file containing scans
+  // This is because point clouds are supposed to be at the right scale
+  float scale_factor;
   
   
   // ### For multi-scale point cloud ###
