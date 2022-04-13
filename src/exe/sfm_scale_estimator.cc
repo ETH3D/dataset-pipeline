@@ -44,6 +44,7 @@
 
 #include "base/util.h"
 #include "io/colmap_model.h"
+#include "opt/parameters.h"
 
 using namespace tinyxml2;
 
@@ -400,6 +401,7 @@ int main(int argc, char** argv) {
   pcl::console::parse_argument(argc, argv, "--debug", debug);
   int cube_map_face_camera_id = 1;
   pcl::console::parse_argument(argc, argv, "--cube_map_face_camera_id", cube_map_face_camera_id);
+  opt::GlobalParameters().scale_factor = 1.0;
   
   // Verify arguments.
   if (sfm_model_path.empty() || sfm_image_path.empty() || scans_path.empty() || output_path.empty()) {
